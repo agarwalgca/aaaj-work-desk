@@ -23,10 +23,12 @@ export function Wordmark({ size = 'sm' }: { size?: 'sm' | 'lg' }) {
 
   return (
     <div className="flex items-center gap-3">
-      <Monogram size={32} />
+      <Monogram size={40} />
       <div className="leading-tight">
-        <div className="font-serif text-base font-semibold text-white">AAAJ Work Desk</div>
-        <div className="hidden text-[11px] tracking-[0.12em] text-white/55 uppercase sm:block">
+        <div className="font-serif text-base font-semibold whitespace-nowrap text-white">
+          AAAJ Work Desk
+        </div>
+        <div className="hidden text-[11px] tracking-[0.12em] whitespace-nowrap text-white/55 uppercase sm:block">
           A A A J &amp; Associates
         </div>
       </div>

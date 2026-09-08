@@ -4,7 +4,7 @@ import { Button } from '../../components/Button'
 import { TextField } from '../../components/TextField'
 import { Wordmark } from '../../components/Wordmark'
 import { supabase } from '../../lib/supabase'
-import { useAuth } from '../../app/AuthProvider'
+import { useAuth } from '../../app/authContext'
 
 export function LoginPage() {
   const { status } = useAuth()

@@ -8,7 +8,7 @@ import {
   SettingsIcon,
   TeamIcon,
 } from '../components/icons'
-import { useAuth } from './AuthProvider'
+import { useAuth } from './authContext'
 
 /** Role gating lands in step 3, once profiles exist and roles are known. */
 const NAV = [
@@ -25,7 +25,7 @@ export function Shell() {
 
   return (
     <div className="min-h-dvh">
-      <header className="bg-ink sticky top-0 z-20 flex h-14 items-center gap-4 px-4">
+      <header className="bg-ink sticky top-0 z-20 flex h-14 items-center gap-3 px-3 md:gap-4 md:px-4">
         <Wordmark />
 
         <label className="ml-auto hidden max-w-md flex-1 md:block">
@@ -38,17 +38,18 @@ export function Shell() {
         </label>
 
         {/* Sync chip is wired to the outbox in step 2. */}
-        <span className="rounded-control ml-auto border border-white/15 px-2 py-1 font-mono text-[11px] text-white/60 md:ml-0">
+        <span className="rounded-control ml-auto border border-white/15 px-2 py-1 font-mono text-[11px] whitespace-nowrap text-white/60 md:ml-0">
           Not synced
         </span>
 
+        {/* Becomes a proper menu in step 3, once profiles give us a real name and role. */}
         <button
           type="button"
           onClick={signOut}
-          title={email}
-          className="rounded-control text-brass border border-white/15 px-2.5 py-1 font-mono text-[11px] hover:bg-white/10"
+          title={`${email} — sign out`}
+          className="text-brass grid size-8 shrink-0 place-items-center rounded-full border border-white/20 font-mono text-[11px] hover:bg-white/10"
         >
-          Sign out
+          {email.slice(0, 2).toUpperCase() || '??'}
         </button>
       </header>
 
