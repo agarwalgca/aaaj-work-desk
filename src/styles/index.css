@@ -1,0 +1,62 @@
+@import './tokens.css';
+
+/* Self-hosted, latin subset only. Weights are pinned to what the design uses:
+   Serif 600 for the wordmark and page titles, Sans 400/500/600 for UI,
+   Mono 400/500 for dates, counts and identifiers. */
+@import '@fontsource/ibm-plex-serif/latin-600.css';
+@import '@fontsource/ibm-plex-sans/latin-400.css';
+@import '@fontsource/ibm-plex-sans/latin-500.css';
+@import '@fontsource/ibm-plex-sans/latin-600.css';
+@import '@fontsource/ibm-plex-mono/latin-400.css';
+@import '@fontsource/ibm-plex-mono/latin-500.css';
+
+@import 'tailwindcss';
+
+@theme inline {
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-paper: var(--paper);
+  --color-card: var(--card);
+  --color-rule: var(--rule);
+  --color-brass: var(--brass);
+  --color-brass-wash: var(--brass-wash);
+
+  --color-status-not-started: var(--status-not-started);
+  --color-status-in-progress: var(--status-in-progress);
+  --color-status-on-hold: var(--status-on-hold);
+  --color-status-review: var(--status-review);
+  --color-status-rework: var(--status-rework);
+  --color-status-completed: var(--status-completed);
+  --color-status-cancelled: var(--status-cancelled);
+  --color-status-overdue: var(--status-overdue);
+
+  --radius-card: var(--radius-card);
+  --radius-control: var(--radius-control);
+
+  --font-serif: var(--font-serif);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-paper text-ink font-sans antialiased;
+    margin: 0;
+    /* Space for the mobile bottom tab bar; the rail-based desktop layout ignores it. */
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Every number in this app is compared against another number in the row above. */
+  code, kbd, samp, pre, .font-mono {
+    font-variant-numeric: tabular-nums;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--brass);
+    outline-offset: 2px;
+  }
+}
