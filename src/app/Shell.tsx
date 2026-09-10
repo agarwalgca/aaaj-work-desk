@@ -8,6 +8,7 @@ import {
   SettingsIcon,
   TeamIcon,
 } from '../components/icons'
+import { emailToUsername } from '../lib/username'
 import { useAuth } from './authContext'
 
 /** Role gating lands in step 3, once profiles exist and roles are known. */
@@ -21,7 +22,7 @@ const NAV = [
 
 export function Shell() {
   const { session, signOut } = useAuth()
-  const email = session?.user.email ?? ''
+  const username = emailToUsername(session?.user.email ?? '')
 
   return (
     <div className="min-h-dvh">
@@ -46,10 +47,10 @@ export function Shell() {
         <button
           type="button"
           onClick={signOut}
-          title={`${email} — sign out`}
+          title={`${username} — sign out`}
           className="text-brass grid size-8 shrink-0 place-items-center rounded-full border border-white/20 font-mono text-[11px] hover:bg-white/10"
         >
-          {email.slice(0, 2).toUpperCase() || '??'}
+          {username.slice(0, 2).toUpperCase() || '??'}
         </button>
       </header>
 

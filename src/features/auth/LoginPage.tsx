@@ -4,11 +4,20 @@ import { Button } from '../../components/Button'
 import { TextField } from '../../components/TextField'
 import { Wordmark } from '../../components/Wordmark'
 import { supabase } from '../../lib/supabase'
+import { AUTH_EMAIL_DOMAIN, usernameToEmail } from '../../lib/username'
 import { useAuth } from '../../app/authContext'
+
+/** GoTrue's wording assumes an email login; ours doesn't. */
+function readableError(message: string) {
+  if (message === 'Invalid login credentials') return 'Username or password is incorrect.'
+  if (message.startsWith('Signups not allowed'))
+    return 'That username has no account. Ask a partner to create one.'
+  return message
+}
 
 export function LoginPage() {
   const { status } = useAuth()
-  const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -21,26 +30,30 @@ export function LoginPage() {
     setBusy(true)
     setError(null)
     setNotice(null)
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) setError(error.message)
+    const { error } = await supabase.auth.signInWithPassword({
+      email: usernameToEmail(username),
+      password,
+    })
+    if (error) setError(readableError(error.message))
     setBusy(false)
   }
 
   async function sendMagicLink() {
-    if (!email) {
-      setError('Enter your firm email address first.')
+    if (!username) {
+      setError('Enter your username first.')
       return
     }
     setBusy(true)
     setError(null)
     setNotice(null)
-    // shouldCreateUser: false keeps this invite-only — an unknown address gets
+    const email = usernameToEmail(username)
+    // shouldCreateUser: false keeps this invite-only — an unknown username gets
     // no link and no account.
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: { shouldCreateUser: false, emailRedirectTo: window.location.origin },
     })
-    if (error) setError(error.message)
+    if (error) setError(readableError(error.message))
     else setNotice(`Sign-in link sent to ${email}. It expires in an hour.`)
     setBusy(false)
   }
@@ -57,12 +70,17 @@ export function LoginPage() {
           <h1 className="font-serif text-lg font-semibold">Sign in</h1>
 
           <TextField
-            label="Email"
-            type="email"
+            label="Username"
+            type="text"
             autoComplete="username"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            placeholder="gaurav"
             required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            hint={username.includes('@') ? undefined : `@${AUTH_EMAIL_DOMAIN}`}
           />
           <TextField
             label="Password"
