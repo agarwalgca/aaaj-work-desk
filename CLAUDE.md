@@ -33,12 +33,13 @@ stop and say so rather than building it.
   six; an icon package is more bytes and more indirection than that earns.
 - **`npx tsc --noEmit` is a no-op here** because `tsconfig.json` is a solution file.
   Use `npm run typecheck` (`tsc -b --force`).
-- **Sign-in is by username, not email.** Supabase Auth keys every account by email,
-  so `src/lib/username.ts` maps one onto the other: `gaurav` → `gaurav@aaaj.co.in`.
-  No lookup table, no leak, no backend. The rule this creates must hold everywhere:
-  **an account's auth email is always `<username>@aaaj.co.in`**, and
-  `profiles.username` is that local part. Creating a user with any other address
-  makes them unable to sign in.
+- **Sign-in is by username, not email.** `profiles.username` is a column of its own,
+  unrelated to the account's email address. Supabase Auth is keyed by email, so the
+  login screen bridges the two through `public.email_for_username(p_username text)`
+  — SECURITY DEFINER, executable by `anon`, returns null for an unknown, inactive or
+  soft-deleted username. Wrong username and wrong password produce the same message,
+  so the form is not an oracle; the function does return a known username's email to
+  its caller, which would take a server to avoid and Phase 1 has none.
 
 ## File layout
 

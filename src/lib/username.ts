@@ -1,21 +1,21 @@
+import { supabase } from './supabase'
+
 /**
- * Supabase Auth keys every account by email; it has no notion of a username. The
- * firm signs in with a username, so one maps onto the other deterministically:
- * `gaurav` resolves to `gaurav@aaaj.co.in`.
+ * Sign-in is by username; Supabase Auth is keyed by email. `profiles.username` is
+ * a field of its own — not the local part of anyone's address — so the two are
+ * bridged by a SECURITY DEFINER lookup the anon role may execute:
  *
- * Nothing is stored to make this work and no lookup runs before sign-in, so an
- * unknown username reveals nothing to whoever typed it. The cost is a rule that
- * has to hold everywhere: an account's auth email is always
- * `<username>@aaaj.co.in`, and the username is the local part.
+ *   create function public.email_for_username(p_username text) returns text
+ *
+ * It returns null for an unknown, deactivated or soft-deleted username, and the
+ * login screen reports the same message either way, so the form is not a username
+ * oracle. The function does hand a known username's email back to whoever asked;
+ * hiding that would take a server, which Phase 1 does not have.
  */
-export const AUTH_EMAIL_DOMAIN = 'aaaj.co.in'
-
-/** Partners are used to typing the full address, so accept either form. */
-export function usernameToEmail(input: string): string {
-  const value = input.trim().toLowerCase()
-  return value.includes('@') ? value : `${value}@${AUTH_EMAIL_DOMAIN}`
-}
-
-export function emailToUsername(email: string): string {
-  return email.split('@')[0]
+export async function emailForUsername(username: string): Promise<string | null> {
+  const { data, error } = await supabase.rpc('email_for_username', {
+    p_username: username.trim().toLowerCase(),
+  })
+  if (error) throw error
+  return data ?? null
 }

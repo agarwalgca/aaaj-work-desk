@@ -4,16 +4,11 @@ import { Button } from '../../components/Button'
 import { TextField } from '../../components/TextField'
 import { Wordmark } from '../../components/Wordmark'
 import { supabase } from '../../lib/supabase'
-import { AUTH_EMAIL_DOMAIN, usernameToEmail } from '../../lib/username'
+import { emailForUsername } from '../../lib/username'
 import { useAuth } from '../../app/authContext'
 
-/** GoTrue's wording assumes an email login; ours doesn't. */
-function readableError(message: string) {
-  if (message === 'Invalid login credentials') return 'Username or password is incorrect.'
-  if (message.startsWith('Signups not allowed'))
-    return 'That username has no account. Ask a partner to create one.'
-  return message
-}
+/** Wrong username and wrong password read the same, so the form is not an oracle. */
+const REJECTED = 'Username or password is incorrect.'
 
 export function LoginPage() {
   const { status } = useAuth()
@@ -30,32 +25,43 @@ export function LoginPage() {
     setBusy(true)
     setError(null)
     setNotice(null)
-    const { error } = await supabase.auth.signInWithPassword({
-      email: usernameToEmail(username),
-      password,
-    })
-    if (error) setError(readableError(error.message))
-    setBusy(false)
+    try {
+      const email = await emailForUsername(username)
+      if (!email) {
+        setError(REJECTED)
+        return
+      }
+      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      if (error) setError(error.message === 'Invalid login credentials' ? REJECTED : error.message)
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause))
+    } finally {
+      setBusy(false)
+    }
   }
 
   async function sendMagicLink() {
-    if (!username) {
-      setError('Enter your username first.')
-      return
-    }
     setBusy(true)
     setError(null)
     setNotice(null)
-    const email = usernameToEmail(username)
-    // shouldCreateUser: false keeps this invite-only — an unknown username gets
-    // no link and no account.
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { shouldCreateUser: false, emailRedirectTo: window.location.origin },
-    })
-    if (error) setError(readableError(error.message))
-    else setNotice(`Sign-in link sent to ${email}. It expires in an hour.`)
-    setBusy(false)
+    try {
+      const email = await emailForUsername(username)
+      if (!email) {
+        setError(REJECTED)
+        return
+      }
+      // shouldCreateUser: false keeps this invite-only — no link, no account.
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: { shouldCreateUser: false, emailRedirectTo: window.location.origin },
+      })
+      if (error) setError(error.message)
+      else setNotice(`Sign-in link sent to the address on file. It expires in an hour.`)
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause))
+    } finally {
+      setBusy(false)
+    }
   }
 
   return (
@@ -76,11 +82,9 @@ export function LoginPage() {
             autoCapitalize="none"
             autoCorrect="off"
             spellCheck={false}
-            placeholder="gaurav"
             required
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            hint={username.includes('@') ? undefined : `@${AUTH_EMAIL_DOMAIN}`}
           />
           <TextField
             label="Password"
@@ -110,7 +114,7 @@ export function LoginPage() {
             <button
               type="button"
               onClick={sendMagicLink}
-              disabled={busy}
+              disabled={busy || !username}
               className="text-brass text-xs font-medium underline underline-offset-2 disabled:opacity-60"
             >
               Email me a sign-in link
