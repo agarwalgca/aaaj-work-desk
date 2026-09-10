@@ -1,0 +1,87 @@
+import Dexie, { type EntityTable } from 'dexie'
+import type {
+  Client,
+  Cursor,
+  Job,
+  JobComment,
+  JobStatusHistory,
+  OutboxEntry,
+  Profile,
+} from './types'
+
+/**
+ * The local store. Every screen reads from here, online included — the UI never
+ * waits on the network to paint. The failure that actually happens at a client's
+ * premises is not a clean offline but two bars of signal where requests hang, and
+ * a network-first read is at its worst on exactly that connection.
+ */
+class WorkDeskDB extends Dexie {
+  profiles!: EntityTable<Profile, 'id'>
+  clients!: EntityTable<Client, 'id'>
+  jobs!: EntityTable<Job, 'id'>
+  job_status_history!: EntityTable<JobStatusHistory, 'id'>
+  job_comments!: EntityTable<JobComment, 'id'>
+  outbox!: EntityTable<OutboxEntry, 'seq'>
+  cursors!: EntityTable<Cursor, 'table_name'>
+
+  constructor() {
+    super('aaaj-work-desk')
+
+    this.version(1).stores({
+      profiles: 'id, username, role, is_active, updated_at',
+      clients: 'id, code, is_active, updated_at',
+      jobs: 'id, assigned_to, reviewer_id, client_id, status, due_date, completed_at, updated_at, [assigned_to+status]',
+      job_status_history: 'id, job_id, changed_at, updated_at, [job_id+changed_at]',
+      job_comments: 'id, job_id, created_at, updated_at',
+      outbox: '++seq, id, state, table_name, row_id, next_attempt_at',
+      cursors: 'table_name',
+    })
+  }
+}
+
+export const db = new WorkDeskDB()
+
+/**
+ * Everything this device holds, dropped. Used on sign-out: the next person to use
+ * the phone must not find the last one's client list sitting in it.
+ */
+export async function clearLocalData() {
+  await db.transaction(
+    'rw',
+    [db.profiles, db.clients, db.jobs, db.job_status_history, db.job_comments, db.outbox, db.cursors],
+    async () => {
+      await Promise.all([
+        db.profiles.clear(),
+        db.clients.clear(),
+        db.jobs.clear(),
+        db.job_status_history.clear(),
+        db.job_comments.clear(),
+        db.outbox.clear(),
+        db.cursors.clear(),
+      ])
+    },
+  )
+}
+
+/** Row counts plus whatever the browser will admit about its storage budget. */
+export async function cacheStats() {
+  const [profiles, clients, jobs, history, comments, pending, failed] = await Promise.all([
+    db.profiles.count(),
+    db.clients.count(),
+    db.jobs.count(),
+    db.job_status_history.count(),
+    db.job_comments.count(),
+    db.outbox.where('state').equals('pending').count(),
+    db.outbox.where('state').equals('failed').count(),
+  ])
+
+  const estimate = await navigator.storage?.estimate?.().catch(() => undefined)
+
+  return {
+    rows: { profiles, clients, jobs, history, comments },
+    total: profiles + clients + jobs + history + comments,
+    outbox: { pending, failed },
+    usage: estimate?.usage ?? null,
+    quota: estimate?.quota ?? null,
+  }
+}

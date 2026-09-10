@@ -1,4 +1,7 @@
+import { useLiveQuery } from 'dexie-react-hooks'
+import { useEffect } from 'react'
 import { NavLink, Outlet } from 'react-router'
+import { SyncChip } from '../features/sync/SyncChip'
 import { Wordmark } from '../components/Wordmark'
 import {
   BoardIcon,
@@ -8,6 +11,8 @@ import {
   SettingsIcon,
   TeamIcon,
 } from '../components/icons'
+import { clearLocalData, db } from '../lib/db'
+import { startSync, stopSync } from '../lib/sync/engine'
 import { useAuth } from './authContext'
 
 /** Role gating lands in step 3, once profiles exist and roles are known. */
@@ -21,8 +26,31 @@ const NAV = [
 
 export function Shell() {
   const { session, signOut } = useAuth()
-  // Becomes profiles.initials once step 2 lands the table.
+  // Becomes profiles.initials once step 3 renders the real person.
   const email = session?.user.email ?? ''
+  const pending = useLiveQuery(() => db.outbox.count(), [], 0)
+
+  // The engine belongs to a signed-in session and nothing else: mounted here, it
+  // starts when the shell does and is torn down the moment the session ends.
+  useEffect(() => {
+    startSync()
+    return stopSync
+  }, [])
+
+  async function signOutSafely() {
+    if (
+      pending > 0 &&
+      !window.confirm(
+        `${pending} change${pending === 1 ? '' : 's'} on this device ${pending === 1 ? 'has' : 'have'} not reached the server yet. ` +
+          'Signing out now discards them. Continue?',
+      )
+    ) {
+      return
+    }
+    stopSync()
+    await clearLocalData()
+    await signOut()
+  }
 
   return (
     <div className="min-h-dvh">
@@ -38,15 +66,14 @@ export function Shell() {
           />
         </label>
 
-        {/* Sync chip is wired to the outbox in step 2. */}
-        <span className="rounded-control ml-auto border border-white/15 px-2 py-1 font-mono text-[11px] whitespace-nowrap text-white/60 md:ml-0">
-          Not synced
-        </span>
+        <div className="ml-auto md:ml-0">
+          <SyncChip />
+        </div>
 
         {/* Becomes a proper menu in step 3, once profiles give us a real name and role. */}
         <button
           type="button"
-          onClick={signOut}
+          onClick={() => void signOutSafely()}
           title={`${email} — sign out`}
           className="text-brass grid size-8 shrink-0 place-items-center rounded-full border border-white/20 font-mono text-[11px] hover:bg-white/10"
         >

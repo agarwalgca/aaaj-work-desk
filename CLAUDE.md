@@ -33,6 +33,17 @@ stop and say so rather than building it.
   six; an icon package is more bytes and more indirection than that earns.
 - **`npx tsc --noEmit` is a no-op here** because `tsconfig.json` is a solution file.
   Use `npm run typecheck` (`tsc -b --force`).
+- **A reconcile sweep, not just a cursor.** An incremental pull can only add and
+  update; it cannot say that a row has *left* a device's view, which is what
+  happens every time a manager reassigns a job away from someone. After each pull,
+  one id-only query per table lists what the caller may currently see, and local
+  rows missing from that list are deleted. It covers reassignment, tombstones and
+  the financial-year window shifting, all with the same few lines.
+- **The migration is verified locally before it is applied.** `npm run verify:sql`
+  runs `0001_init.sql` and `seed.sql` against Postgres compiled to WASM (PGlite),
+  with a stub `auth` schema, and asserts the permission rules. Dev-only; it never
+  ships. `scripts/test-rls.ts` re-checks the same rules through PostgREST once the
+  migration is live.
 - **Sign-in is by username, not email.** `profiles.username` is a column of its own,
   unrelated to the account's email address. Supabase Auth is keyed by email, so the
   login screen bridges the two through `public.email_for_username(p_username text)`
@@ -121,8 +132,11 @@ Append-only tables (`job_status_history`, `job_comments`) push as
 Run it and quote the output. Do not report a step done on the strength of having
 written the code.
 
-- `npm run typecheck` and `npm run build` clean.
-- `node --experimental-strip-types scripts/test-rls.ts` — pass/fail per permission case.
+- `npm run typecheck`, `npm run lint` and `npm run build` clean.
+- `npm test` — unit tests (Vitest, Dexie against fake-indexeddb).
+- `npm run verify:sql` — migration and seed applied to PGlite, permissions asserted.
+- `node --experimental-strip-types scripts/test-rls.ts` — the same rules through
+  PostgREST, against the live project.
 - Offline write path, cache window, reassignment tombstone, conflict path and
   reload durability are checked by hand against the steps in the README.
 
@@ -155,3 +169,10 @@ Established so far:
   `email_for_username` lowercases its argument. Display names come from
   `profiles.full_name`, never from the username.
 - The partner account is `gaurav@aaaj.co.in`, username **`nitesh`**.
+- **Staff status transitions**, as implemented in `public.jobs_guard()`:
+  `not_started → in_progress`, `in_progress ⇄ on_hold`, `in_progress → review`,
+  `on_hold → review`, `rework → in_progress`. The brief wrote this as a chain, so
+  `on_hold → in_progress` was added to let someone resume work they paused — check
+  that is what the firm wants before it matters.
+- Seeded colleagues live at `@seed.aaaj.co.in`, which routes nowhere. Remove them
+  before the firm goes live: `delete from auth.users where email like '%@seed.aaaj.co.in';`
