@@ -10,6 +10,10 @@ import { useAuth } from '../../app/authContext'
 /** Wrong username and wrong password read the same, so the form is not an oracle. */
 const REJECTED = 'Username or password is incorrect.'
 
+/** Said whether or not the username exists, for the same reason. */
+const RESET_SENT =
+  'If that username has an account, a reset link is on its way to the address on file.'
+
 export function LoginPage() {
   const { status } = useAuth()
   const [username, setUsername] = useState('')
@@ -40,23 +44,22 @@ export function LoginPage() {
     }
   }
 
-  async function sendMagicLink() {
+  async function sendReset() {
     setBusy(true)
     setError(null)
     setNotice(null)
     try {
       const email = await emailForUsername(username)
-      if (!email) {
-        setError(REJECTED)
-        return
+      if (email) {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/reset-password`,
+        })
+        if (error) {
+          setError(error.message)
+          return
+        }
       }
-      // shouldCreateUser: false keeps this invite-only — no link, no account.
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: { shouldCreateUser: false, emailRedirectTo: window.location.origin },
-      })
-      if (error) setError(error.message)
-      else setNotice(`Sign-in link sent to the address on file. It expires in an hour.`)
+      setNotice(RESET_SENT)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause))
     } finally {
@@ -113,11 +116,11 @@ export function LoginPage() {
             <span className="text-ink-soft text-xs">Forgotten your password?</span>
             <button
               type="button"
-              onClick={sendMagicLink}
+              onClick={sendReset}
               disabled={busy || !username}
               className="text-brass text-xs font-medium underline underline-offset-2 disabled:opacity-60"
             >
-              Email me a sign-in link
+              Email me a reset link
             </button>
           </div>
         </form>

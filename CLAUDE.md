@@ -145,10 +145,12 @@ until told otherwise.
 
 Established so far:
 
-- **Every employee has a real firm mailbox**, so the magic-link fallback on the
-  login screen is a genuine recovery path. It needs custom SMTP configured on the
-  project — Supabase's built-in sender only delivers to project members and is
-  capped at a couple of messages an hour.
+- **Sign-in is username + password only.** No magic link. Email addresses exist on
+  the account for one purpose: the forgotten-password reset, which lands on
+  `/reset-password`. That path needs custom SMTP configured on the project —
+  Supabase's built-in sender only delivers to project members and is capped at a
+  couple of messages an hour — and the redirect URL has to be allowlisted under
+  Authentication → URL Configuration.
 - **Usernames are stored lowercase** and matched case-insensitively;
   `email_for_username` lowercases its argument. Display names come from
   `profiles.full_name`, never from the username.

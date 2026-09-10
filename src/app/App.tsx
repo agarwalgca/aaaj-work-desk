@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router'
 import { LoginPage } from '../features/auth/LoginPage'
+import { ResetPasswordPage } from '../features/auth/ResetPasswordPage'
 import { isConfigured } from '../lib/supabase'
 import { AuthProvider } from './AuthProvider'
 import { useAuth } from './authContext'
@@ -24,6 +25,8 @@ export function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          {/* Public: the visitor arrives holding only a recovery session. */}
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route element={<RequireAuth />}>
             <Route index element={<Navigate to="/my-work" replace />} />
             <Route path="my-work" element={<Placeholder title="My Work" step={3} />} />

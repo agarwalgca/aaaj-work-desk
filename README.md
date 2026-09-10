@@ -34,11 +34,13 @@ People sign in with a **username**, which is a column on `profiles` and has noth
 to do with their email address. Supabase Auth is keyed by email, so the login screen
 resolves one to the other through `public.email_for_username()`.
 
-Locked out staff can request a one-time sign-in link by email. That path needs
-custom SMTP configured on the Supabase project; the built-in sender only delivers
-to project members and is rate-limited to a couple of messages an hour. Until SMTP
-is set up, a partner sets a new password from the dashboard instead
-(Authentication → Users → ⋯ → Reset password).
+Sign-in is username and password only. An account's email address exists for one
+reason: the forgotten-password reset, which mails a link that lands on
+`/reset-password`. Two things have to be set up on the Supabase project for it to
+work — custom SMTP (the built-in sender only delivers to project members and is
+rate-limited to a couple of messages an hour) and the redirect URL allowlisted
+under Authentication → URL Configuration. Until then a partner sets a new password
+from the dashboard (Authentication → Users → ⋯ → Reset password).
 
 ## Conventions
 
