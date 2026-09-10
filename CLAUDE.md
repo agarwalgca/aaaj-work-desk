@@ -142,3 +142,14 @@ Scopes in use: `shell`, `data`, `sync`, `jobs`, `clients`, `team`, `settings`,
 Ask rather than invent — real client names, the categories the firm actually
 uses, the exact wording of a status. `seed.sql` uses obviously fictional clients
 until told otherwise.
+
+Established so far:
+
+- **Every employee has a real firm mailbox**, so the magic-link fallback on the
+  login screen is a genuine recovery path. It needs custom SMTP configured on the
+  project — Supabase's built-in sender only delivers to project members and is
+  capped at a couple of messages an hour.
+- **Usernames are stored lowercase** and matched case-insensitively;
+  `email_for_username` lowercases its argument. Display names come from
+  `profiles.full_name`, never from the username.
+- The partner account is `gaurav@aaaj.co.in`, username **`nitesh`**.

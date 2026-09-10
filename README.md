@@ -25,10 +25,20 @@ Without a `.env` the app renders setup instructions rather than a dead login for
 
 ## Access
 
-Invite-only. Public sign-up is disabled in Supabase; partners invite by email and
-a trigger creates the matching `profiles` row as `staff` for a partner to adjust.
+Invite-only. Public sign-up is disabled in Supabase; a partner creates the account
+and a trigger adds the matching `profiles` row as `staff` for a partner to adjust.
 Roles are `partner`, `manager`, `staff`; what each may do is enforced in Postgres
 by row-level security plus a `BEFORE UPDATE` trigger, not in the client.
+
+People sign in with a **username**, which is a column on `profiles` and has nothing
+to do with their email address. Supabase Auth is keyed by email, so the login screen
+resolves one to the other through `public.email_for_username()`.
+
+Locked out staff can request a one-time sign-in link by email. That path needs
+custom SMTP configured on the Supabase project; the built-in sender only delivers
+to project members and is rate-limited to a couple of messages an hour. Until SMTP
+is set up, a partner sets a new password from the dashboard instead
+(Authentication → Users → ⋯ → Reset password).
 
 ## Conventions
 
