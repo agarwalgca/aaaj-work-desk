@@ -5,6 +5,16 @@ import { syncNow } from '../../lib/sync/engine'
 import { useSyncState } from '../../lib/sync/state'
 
 const A_DAY = 24 * 60 * 60 * 1000
+const DISMISSED_KEY = 'aaaj:stale-writes-dismissed'
+
+/** Which backlog was waved away, so a newer one can still raise the alarm. */
+function readDismissed(): string | null {
+  try {
+    return localStorage.getItem(DISMISSED_KEY)
+  } catch {
+    return null
+  }
+}
 
 /**
  * The one warning that earns a banner.
@@ -23,6 +33,8 @@ export function StaleWritesBanner() {
   // Dexie re-runs the query when the data changes, but nothing changes when a
   // write merely gets older. The clock is the external system here.
   const [now, setNow] = useState(() => Date.now())
+  const [dismissed, setDismissed] = useState(readDismissed)
+
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 5 * 60 * 1000)
     return () => clearInterval(timer)
@@ -32,7 +44,21 @@ export function StaleWritesBanner() {
   const age = now - new Date(oldest.queued_at).getTime()
   if (age < A_DAY) return null
 
+  // Dismissal is tied to the entry that was dismissed. Clearing it away does not
+  // buy silence for the next thing that gets stuck.
+  if (dismissed === oldest.id) return null
+
   const days = Math.floor(age / A_DAY)
+
+  function dismiss() {
+    if (!oldest) return
+    try {
+      localStorage.setItem(DISMISSED_KEY, oldest.id)
+    } catch {
+      // Private browsing, or storage blocked. Hiding it for this render is enough.
+    }
+    setDismissed(oldest.id)
+  }
 
   return (
     <div className="rounded-card border-status-on-hold/50 bg-status-on-hold/5 mb-4 flex flex-wrap items-center gap-3 border p-3">
@@ -47,6 +73,14 @@ export function StaleWritesBanner() {
         className="text-brass shrink-0 text-xs underline underline-offset-2 disabled:opacity-50"
       >
         {online ? 'Send now' : 'Waiting for a connection'}
+      </button>
+      <button
+        type="button"
+        onClick={dismiss}
+        aria-label="Dismiss this warning"
+        className="text-ink-soft hover:text-ink shrink-0 text-xs underline underline-offset-2"
+      >
+        Dismiss
       </button>
     </div>
   )

@@ -13,9 +13,12 @@ import { useCallback, useRef } from 'react'
  * otherwise be fifty presses to get past.
  */
 export function useRovingList() {
-  const container = useRef<HTMLUListElement>(null)
+  // An element rather than a list: once the Board groups its rows under headings,
+  // the rows are spread across several <ul>s and the arrows still have to walk the
+  // lot as one sequence.
+  const container = useRef<HTMLDivElement>(null)
 
-  const onKeyDown = useCallback((event: React.KeyboardEvent<HTMLUListElement>) => {
+  const onKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
     const rows = Array.from(
       container.current?.querySelectorAll<HTMLElement>('[data-row]') ?? [],
     )

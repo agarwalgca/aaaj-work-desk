@@ -88,6 +88,29 @@ old, plus closed jobs finished inside the current or previous Indian financial
 year. The boundary is computed at pull time, so on 1 April the window moves by
 itself.
 
+## A limitation worth knowing about
+
+Browsers evict site storage. iOS Safari clears it after roughly seven days without
+a visit, and installing to the home screen only partly mitigates that. Nothing in a
+browser can prevent it.
+
+What that means here: somebody who ignores the app for three weeks and then opens
+it offline may find an empty cache and no jobs. Worse, writes queued on that device
+and never flushed before the eviction are gone — not queued somewhere else, gone.
+
+The app does what it can:
+
+- the outbox is flushed whenever the tab is hidden and whenever a connection
+  returns, so the window in which a write is only on the device is as short as it
+  can be made;
+- signing out is blocked with a warning while anything is still queued;
+- a banner appears when a queued write has been waiting more than a day.
+
+None of that helps a phone that is never opened. If a member of staff works offline
+regularly, the honest advice is to open the app on Wi-Fi once a week. This is a
+real constraint of building without a backend, not an oversight, and it is the main
+thing that would change if Phase 2 ever adds one.
+
 ## Who sees what
 
 | Screen      | Partner | Manager | Staff |

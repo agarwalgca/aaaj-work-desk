@@ -1,7 +1,8 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useEffect, useState } from 'react'
-import { Link, NavLink, Outlet } from 'react-router'
+import { NavLink, Outlet } from 'react-router'
 import { GlobalSearch } from '../features/search/GlobalSearch'
+import { AvatarMenu } from '../features/settings/AvatarMenu'
 import { StaleWritesBanner } from '../features/sync/StaleWritesBanner'
 import { SyncChip } from '../features/sync/SyncChip'
 import { Wordmark } from '../components/Wordmark'
@@ -36,7 +37,7 @@ const NAV: Array<{
 ]
 
 export function Shell() {
-  const { signOut } = useAuth()
+  const { session, signOut } = useAuth()
   const me = useMe()
   const pending = useLiveQuery(() => db.outbox.count(), [], 0)
   const [searchOpen, setSearchOpen] = useState(false)
@@ -49,7 +50,6 @@ export function Shell() {
   }, [])
 
   const visible = NAV.filter((item) => !item.roles || (me && item.roles.includes(me.role)))
-  const initials = me?.initials || me?.username.slice(0, 2).toUpperCase() || '··'
 
   async function signOutSafely() {
     if (
@@ -88,21 +88,12 @@ export function Shell() {
           <SyncChip />
         </div>
 
-        <Link
-          to="/settings"
-          title={me ? `${me.full_name || me.username} — settings` : 'Settings'}
-          className="text-brass grid size-8 shrink-0 place-items-center rounded-full border border-white/20 font-mono text-[11px] hover:bg-white/10"
-        >
-          {initials}
-        </Link>
-
-        <button
-          type="button"
-          onClick={() => void signOutSafely()}
-          className="hidden font-mono text-[11px] text-white/50 hover:text-white md:block"
-        >
-          Sign out
-        </button>
+        <AvatarMenu
+          me={me}
+          email={session?.user.email ?? ''}
+          pending={pending}
+          onSignOut={() => void signOutSafely()}
+        />
       </header>
 
       {searchOpen && (

@@ -6,7 +6,7 @@ import { StatusPill } from '../../components/StatusPill'
 import { CATEGORY_LABEL, STATUS_LABEL } from '../../lib/labels'
 import type { Job, JobStatus } from '../../lib/types'
 import { activeFilterCount, useBoardFilters } from './boardFilters'
-import { byDueThenPriority, isOpen, isOverdue } from './grouping'
+import { DUE_GROUP_LABEL, byDueThenPriority, groupByDue, isOpen, isOverdue } from './grouping'
 import { JobRow } from './JobRow'
 import { useRovingList } from './useRovingList'
 import { personName, useAllJobs, useLookups } from './useJobData'
@@ -132,22 +132,42 @@ export function BoardPage() {
           detail={active > 0 ? 'Clear a filter or two and try again.' : undefined}
         />
       ) : f.view === 'list' ? (
-        <ul
+        <div
           {...listProps}
-          aria-label="Jobs. Use the up and down arrows to move between rows."
-          className="grid gap-1.5"
+          role="group"
+          aria-label="Jobs by when they are due. Use the up and down arrows to move between rows."
         >
-          {filtered.map((job, index) => (
-            <JobRow
-              key={job.id}
-              index={index}
-              job={job}
-              client={clientById.get(job.client_id)}
-              today={today}
-              assignee={job.assigned_to ? personName(profileById.get(job.assigned_to)) : 'Unassigned'}
-            />
-          ))}
-        </ul>
+          {(() => {
+            // Index runs across the groups, not within them, so the arrows treat
+            // the whole board as one sequence and cross a heading without stopping.
+            let index = -1
+            return groupByDue(filtered, today).map(({ group, jobs: inGroup }) => (
+              <div key={group} className="mb-6">
+                <h2 className="text-ink-soft mb-2 text-xs font-semibold tracking-wide uppercase">
+                  {DUE_GROUP_LABEL[group]}
+                  <span className="ml-2 font-mono font-normal">{inGroup.length}</span>
+                </h2>
+                <ul className="grid gap-1.5">
+                  {inGroup.map((job) => {
+                    index += 1
+                    return (
+                      <JobRow
+                        key={job.id}
+                        index={index}
+                        job={job}
+                        client={clientById.get(job.client_id)}
+                        today={today}
+                        assignee={
+                          job.assigned_to ? personName(profileById.get(job.assigned_to)) : 'Unassigned'
+                        }
+                      />
+                    )
+                  })}
+                </ul>
+              </div>
+            ))
+          })()}
+        </div>
       ) : (
         <Workload jobs={filtered} today={today} />
       )}
