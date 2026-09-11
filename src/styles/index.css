@@ -59,4 +59,40 @@
     outline: 2px solid var(--brass);
     outline-offset: 2px;
   }
+
+  /* Motion is a hint that something responded, not decoration. 150ms is long
+     enough to read as a response and short enough never to be waited on. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  /* Panels and sheets arrive rather than appear. */
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+  }
+
+  @keyframes fade {
+    from {
+      opacity: 0;
+    }
+  }
+
+  .animate-rise {
+    animation: rise 150ms ease-out;
+  }
+
+  .animate-fade {
+    animation: fade 120ms ease-out;
+  }
 }

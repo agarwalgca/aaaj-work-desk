@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../lib/db'
-import type { Client, Job, Profile } from '../../lib/types'
+import type { Client, Profile } from '../../lib/types'
 
 /** Lookup maps, so a row can name its client without a query per row. */
 export function useClients() {
@@ -22,23 +22,20 @@ export function useLookups() {
   }
 }
 
+/** Undefined until Dexie answers, so a screen can tell loading from empty. */
 export function useAllJobs() {
-  return useLiveQuery(() => db.jobs.toArray(), [], [] as Job[])
+  return useLiveQuery(() => db.jobs.toArray(), [])
 }
 
 /** Everything assigned to me or waiting on my review. */
 export function useMyJobs(uid: string | undefined) {
-  return useLiveQuery(
-    async () => {
-      if (!uid) return []
-      const mine = await db.jobs.where('assigned_to').equals(uid).toArray()
-      const reviewing = await db.jobs.where('reviewer_id').equals(uid).toArray()
-      const seen = new Set(mine.map((j) => j.id))
-      return [...mine, ...reviewing.filter((j) => !seen.has(j.id))]
-    },
-    [uid],
-    [] as Job[],
-  )
+  return useLiveQuery(async () => {
+    if (!uid) return []
+    const mine = await db.jobs.where('assigned_to').equals(uid).toArray()
+    const reviewing = await db.jobs.where('reviewer_id').equals(uid).toArray()
+    const seen = new Set(mine.map((j) => j.id))
+    return [...mine, ...reviewing.filter((j) => !seen.has(j.id))]
+  }, [uid])
 }
 
 /**

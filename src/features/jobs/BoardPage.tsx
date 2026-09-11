@@ -1,5 +1,6 @@
 import { Link } from 'react-router'
 import { EmptyState } from '../../components/EmptyState'
+import { SkeletonRows } from '../../components/Skeleton'
 import { PageHeader } from '../../components/PageHeader'
 import { Button } from '../../components/Button'
 import { StatusPill } from '../../components/StatusPill'
@@ -29,7 +30,8 @@ export function BoardPage() {
   const { listProps } = useRovingList()
   const today = new Date()
 
-  const filtered = jobs
+  const loading = jobs === undefined
+  const filtered = (jobs ?? [])
     .filter((job) => {
       if (f.status === 'open' && !isOpen(job)) return false
       if (f.status !== 'open' && f.status !== 'all' && job.status !== f.status) return false
@@ -126,7 +128,9 @@ export function BoardPage() {
         </div>
       </div>
 
-      {filtered.length === 0 ? (
+      {loading ? (
+        <SkeletonRows count={6} />
+      ) : filtered.length === 0 ? (
         <EmptyState
           title="No jobs match these filters"
           detail={active > 0 ? 'Clear a filter or two and try again.' : undefined}

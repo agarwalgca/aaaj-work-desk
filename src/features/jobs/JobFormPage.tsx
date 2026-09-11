@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router'
 import { useMe } from '../../app/useMe'
 import { Button } from '../../components/Button'
 import { EmptyState } from '../../components/EmptyState'
+import { SkeletonPanel } from '../../components/Skeleton'
 import { PageHeader } from '../../components/PageHeader'
 import { Select } from '../../components/Select'
 import { Textarea } from '../../components/Textarea'
@@ -47,7 +48,13 @@ export function JobFormPage() {
   const { id } = useParams()
   const existing = useJob(id)
 
-  if (id && existing === undefined) return null
+  if (id && existing === undefined) {
+    return (
+      <section className="max-w-2xl">
+        <SkeletonPanel lines={5} />
+      </section>
+    )
+  }
 
   if (id && existing === null) {
     return (

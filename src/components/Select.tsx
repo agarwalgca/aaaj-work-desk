@@ -16,7 +16,7 @@ export function Select({ label, options, className = '', ...props }: Props) {
       <select
         id={id}
         {...props}
-        className={`rounded-control border-rule bg-card focus:border-brass h-10 border px-2 text-sm outline-none ${className}`}
+        className={`rounded-control border-rule bg-card focus:border-brass h-10 border px-2 text-sm outline-none transition-colors duration-150 ${className}`}
       >
         {options.map((option) => (
           <option key={option.value} value={option.value}>

@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { Link } from 'react-router'
 import { EmptyState } from '../../components/EmptyState'
+import { SkeletonRows } from '../../components/Skeleton'
 import { PageHeader } from '../../components/PageHeader'
 import { useMe } from '../../app/useMe'
 import type { Job } from '../../lib/types'
@@ -21,8 +21,9 @@ export function MyWorkPage() {
   const [moving, setMoving] = useState<Job | null>(null)
 
   const today = new Date()
-  const open = jobs.filter(isOpen)
-  const closed = jobs.filter((job) => !isOpen(job))
+  const loading = jobs === undefined
+  const open = (jobs ?? []).filter(isOpen)
+  const closed = (jobs ?? []).filter((job) => !isOpen(job))
   const groups = groupByDue(open, today)
 
   return (
@@ -35,13 +36,11 @@ export function MyWorkPage() {
         >
           {showClosed ? 'Hide' : 'Show'} finished ({closed.length})
         </button>
-        {/* A style comparison, not a feature. Delete with MyWorkRoomy.tsx. */}
-        <Link to="/my-work/roomy" className="text-brass text-xs underline underline-offset-2">
-          Roomier draft
-        </Link>
       </PageHeader>
 
-      {open.length === 0 && (
+      {loading && <SkeletonRows count={4} />}
+
+      {!loading && open.length === 0 && (
         <EmptyState
           title="Nothing assigned to you"
           detail="When a partner or manager allocates a job it will appear here."

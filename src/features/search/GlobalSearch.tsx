@@ -57,7 +57,7 @@ export function GlobalSearch({ onDone }: { onDone?: () => void }) {
       />
 
       {open && (
-        <div className="rounded-card border-rule bg-card absolute top-11 right-0 left-0 z-30 max-h-96 overflow-y-auto border shadow-lg">
+        <div className="rounded-card border-rule bg-card animate-rise absolute top-11 right-0 left-0 z-30 max-h-96 overflow-y-auto border shadow-lg">
           <p className="text-ink-soft border-rule border-b px-3 py-1.5 text-[11px]">
             {searching
               ? 'Searching…'

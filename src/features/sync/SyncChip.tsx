@@ -53,7 +53,7 @@ export function SyncChip() {
       </button>
 
       {open && (
-        <div className="rounded-card border-rule bg-card absolute top-9 right-0 z-30 w-80 border p-3 shadow-lg">
+        <div className="rounded-card border-rule bg-card animate-rise absolute top-9 right-0 z-30 w-80 border p-3 shadow-lg">
           <div className="flex items-center justify-between">
             <h2 className="font-serif text-sm font-semibold">Sync</h2>
             <button

@@ -33,7 +33,7 @@ export function StatusSheet({
 
   return (
     <div
-      className="fixed inset-0 z-40 flex items-end justify-center bg-black/30 sm:items-center"
+      className="animate-fade fixed inset-0 z-40 flex items-end justify-center bg-black/30 sm:items-center"
       onClick={onClose}
       role="presentation"
     >
@@ -41,7 +41,7 @@ export function StatusSheet({
         role="dialog"
         aria-label={`Change status of ${job.title}`}
         onClick={(event) => event.stopPropagation()}
-        className="rounded-card border-rule bg-card w-full border p-4 shadow-xl sm:max-w-sm"
+        className="rounded-card border-rule bg-card animate-rise w-full border p-4 shadow-xl sm:max-w-sm"
       >
         <p className="text-ink-soft text-xs">{job.title}</p>
         <div className="mt-1 flex items-center gap-2">

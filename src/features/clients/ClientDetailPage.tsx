@@ -4,6 +4,7 @@ import { useParams } from 'react-router'
 import { useMe } from '../../app/useMe'
 import { Button } from '../../components/Button'
 import { EmptyState } from '../../components/EmptyState'
+import { SkeletonPanel } from '../../components/Skeleton'
 import { PageHeader } from '../../components/PageHeader'
 import { db } from '../../lib/db'
 import { updateClient } from '../../lib/sync/outbox'
@@ -23,7 +24,13 @@ export function ClientDetailPage() {
   const [editing, setEditing] = useState(false)
   const today = new Date()
 
-  if (client === undefined) return null
+  if (client === undefined) {
+    return (
+      <section className="max-w-3xl">
+        <SkeletonPanel lines={2} />
+      </section>
+    )
+  }
   if (client === null) {
     return (
       <EmptyState

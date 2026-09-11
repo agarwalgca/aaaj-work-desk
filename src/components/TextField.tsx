@@ -13,7 +13,7 @@ export function TextField({ label, hint, className = '', ...props }: Props) {
       <input
         id={id}
         {...props}
-        className={`rounded-control border-rule bg-card placeholder:text-ink-soft/50 focus:border-brass h-10 border px-3 text-sm outline-none ${className}`}
+        className={`rounded-control border-rule bg-card placeholder:text-ink-soft/50 focus:border-brass h-10 border px-3 text-sm outline-none transition-colors duration-150 ${className}`}
       />
       {hint && <p className="text-ink-soft/80 font-mono text-xs">{hint}</p>}
     </div>

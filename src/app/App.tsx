@@ -8,7 +8,6 @@ import { BoardPage } from '../features/jobs/BoardPage'
 import { JobDetailPage } from '../features/jobs/JobDetailPage'
 import { JobFormPage } from '../features/jobs/JobFormPage'
 import { MyWorkPage } from '../features/jobs/MyWorkPage'
-import { MyWorkRoomy } from '../features/jobs/MyWorkRoomy'
 import { RecurringPage } from '../features/recurring/RecurringPage'
 import { SettingsPage } from '../features/settings/SettingsPage'
 import { TeamPage } from '../features/team/TeamPage'
@@ -72,8 +71,6 @@ export function App() {
           <Route element={<RequireAuth />}>
             <Route index element={<Navigate to="/my-work" replace />} />
             <Route path="my-work" element={<MyWorkPage />} />
-            {/* A style comparison, not a feature. Delete with MyWorkRoomy.tsx. */}
-            <Route path="my-work/roomy" element={<MyWorkRoomy />} />
             <Route path="jobs/:id" element={<JobDetailPage />} />
             <Route path="clients" element={<ClientsPage />} />
             <Route path="clients/:id" element={<ClientDetailPage />} />

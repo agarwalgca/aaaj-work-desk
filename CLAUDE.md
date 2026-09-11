@@ -62,6 +62,16 @@ line to hold if anyone asks for it.
 - **Forms take their initial values as props, keyed by row id**, rather than
   copying a loaded row into state inside an effect. The effect version renders
   twice on every open and races anyone who starts typing before Dexie answers.
+- **A row indicator is silent when there is nothing to report.** `SavedIndicator`
+  used to print "Saved" on every row forever, which is not reassurance — it is
+  noise that hides the one row that does need attention. It now speaks while a
+  write is queued, flashes "Saved" for four seconds as it lands, and otherwise
+  renders nothing.
+- **Loading is a skeleton, never `return null`.** A blank screen reads as "there
+  is nothing here", which is the one thing it must not say while it is still
+  looking. `useLiveQuery` without a default returns `undefined` until it answers —
+  that is how a screen tells loading from empty, so do not pass a default to a
+  query whose emptiness is meaningful.
 - **Class names for status colours are written out in full** in
   `src/components/statusStyles.ts`. Tailwind reads source text, so
   `border-status-${status}` is a class that never gets generated.
@@ -142,7 +152,34 @@ Never write a hex value outside `tokens.css`. If a colour is missing, add a toke
 
 Geometry: `rounded-card` (6px) on cards, `rounded-control` (4px) on inputs and
 pills. 1px `border-rule` on every surface — borders, not shadows. Shadows are
-reserved for modals and the mobile action sheet. 8px spacing scale, dense rows.
+reserved for modals and the mobile action sheet.
+
+**Spacing** is the 4px scale, and only these steps: `gap-1` `gap-2` `gap-3`
+`gap-4` `gap-6` `gap-8`, `p-3` `p-4`, `py-2` `py-3`. Half-steps (`gap-1.5`,
+`py-2.5`) are what makes a dense layout feel unconsidered — a row is 2 or 3, not
+2.5. Group separations are 6, page sections 8.
+
+**Type ramp**, and nothing between the rungs:
+
+| Use | Class |
+| --- | --- |
+| Page title | `font-serif text-xl font-semibold` |
+| Section heading | `font-serif text-base font-semibold` |
+| Group label | `text-xs font-semibold uppercase tracking-wide text-ink-soft` |
+| Row title | `text-sm font-medium` |
+| Body | `text-sm` |
+| Secondary, dates, codes | `text-xs` (mono where it is a number) |
+| Pills, badges | `text-[11px]` |
+
+**Motion** is 150ms and means "something responded". Panels and sheets use
+`animate-rise`, overlays `animate-fade`; interactive surfaces carry
+`transition-colors duration-150`. All of it is disabled under
+`prefers-reduced-motion`.
+
+**Lists are tables.** Rows use a grid whose columns are fixed except the title,
+so dates land under dates all the way down. Every row is its own grid, so an
+`auto` column sizes to its own content and the alignment silently stops being
+alignment — measure it, do not assume it.
 
 Type: `font-serif` (IBM Plex Serif 600) for the wordmark and page titles,
 `font-sans` (IBM Plex Sans 400/500/600) for UI, `font-mono` (IBM Plex Mono,

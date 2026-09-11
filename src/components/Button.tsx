@@ -14,7 +14,7 @@ export function Button({ variant = 'primary', className = '', ...props }: Props)
   return (
     <button
       {...props}
-      className={`rounded-control inline-flex h-10 items-center justify-center gap-2 border px-4 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-70 ${variants[variant]} ${className}`}
+      className={`rounded-control inline-flex h-10 items-center justify-center gap-2 border px-4 text-sm font-medium transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-70 ${variants[variant]} ${className}`}
     />
   )
 }

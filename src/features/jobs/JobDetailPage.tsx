@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router'
 import { useMe } from '../../app/useMe'
 import { Button } from '../../components/Button'
 import { EmptyState } from '../../components/EmptyState'
+import { SkeletonPanel } from '../../components/Skeleton'
 import { SavedIndicator } from '../../components/SavedIndicator'
 import { OverdueMark, PriorityMark, StatusPill } from '../../components/StatusPill'
 import { db } from '../../lib/db'
@@ -30,7 +31,13 @@ export function JobDetailPage() {
   const [moving, setMoving] = useState(false)
   const today = new Date()
 
-  if (job === undefined) return null
+  if (job === undefined) {
+    return (
+      <section className="max-w-3xl">
+        <SkeletonPanel lines={4} />
+      </section>
+    )
+  }
 
   if (job === null) {
     return (

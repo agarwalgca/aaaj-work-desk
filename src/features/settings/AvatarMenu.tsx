@@ -60,7 +60,7 @@ export function AvatarMenu({
       {open && (
         <div
           role="menu"
-          className="rounded-card border-rule bg-card absolute top-10 right-0 z-40 w-60 border p-1 shadow-lg"
+          className="rounded-card border-rule bg-card animate-rise absolute top-10 right-0 z-40 w-60 border p-1 shadow-lg"
         >
           <div className="border-rule border-b px-3 py-2">
             <p className="text-sm font-medium">{me?.full_name || me?.username || 'Signed in'}</p>
