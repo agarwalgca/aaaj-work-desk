@@ -146,6 +146,7 @@ for (const file of [
   'supabase/migrations/0002_job_templates.sql',
   'supabase/migrations/0003_generate_recurring.sql',
   'supabase/migrations/0004_due_date_rules.sql',
+  'supabase/migrations/0005_schedule_status.sql',
 ]) {
   const name = file.split('/').pop()
   try {
@@ -651,6 +652,15 @@ console.log('\n— the scheduled generator —')
      where template_id is not null and title = 'Statutory audit' and due_date is not null`,
   )
   report('a template without a rule still invents nothing', noRule.rows[0].n === 0)
+}
+
+console.log('\n— schedule visibility —')
+{
+  // PGlite has no pg_cron, which is exactly the case the guard exists for: the
+  // function must still be creatable, and must answer "nothing scheduled" rather
+  // than blow up on a missing cron schema.
+  const rows = (await db.query(`select * from public.recurring_schedule()`)).rows
+  report('recurring_schedule() answers on a database without pg_cron', rows.length === 0)
 }
 
 console.log('\n— new account —')

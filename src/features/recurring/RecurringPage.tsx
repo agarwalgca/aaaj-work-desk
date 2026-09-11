@@ -13,6 +13,7 @@ import { createJobTemplate, updateJobTemplate } from '../../lib/sync/outbox'
 import type { Frequency, JobCategory, JobPriority, JobTemplate } from '../../lib/types'
 import { personName, useLookups } from '../jobs/useJobData'
 import { GeneratePanel } from './GeneratePanel'
+import { ScheduleStatus } from './ScheduleStatus'
 import { formatDate } from '../../lib/dates'
 import { FREQUENCIES, FREQUENCY_LABEL, dueDateFor, periodContaining } from './periods'
 
@@ -45,12 +46,7 @@ export function RecurringPage() {
         <Button onClick={() => setEditing('new')}>Add recurring job</Button>
       </PageHeader>
 
-      <p className="rounded-card border-rule bg-brass-wash text-ink-soft mb-4 border px-3 py-2 text-sm">
-        These are created automatically at the start of each month, for the period
-        that has just finished — October the 1st produces September&rsquo;s returns. Use{' '}
-        <strong>Generate jobs</strong> to catch up a period that was missed, or to
-        create one early.
-      </p>
+      <ScheduleStatus />
 
       {generating && me && (
         <GeneratePanel templates={active} actorId={me.id} onDone={() => setGenerating(false)} />
