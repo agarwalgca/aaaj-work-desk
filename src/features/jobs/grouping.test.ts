@@ -23,6 +23,8 @@ const job = (patch: Partial<Job>): Job => ({
   created_at: '2026-09-01T00:00:00Z',
   updated_at: '2026-09-01T00:00:00Z',
   deleted_at: null,
+  template_id: null,
+  period_key: null,
   ...patch,
 })
 

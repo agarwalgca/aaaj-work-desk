@@ -1,5 +1,13 @@
 import { db } from '../db'
-import type { Client, Job, JobStatus, OutboxEntry, Profile, SyncedTable } from '../types'
+import type {
+  Client,
+  Job,
+  JobStatus,
+  JobTemplate,
+  OutboxEntry,
+  Profile,
+  SyncedTable,
+} from '../types'
 
 /**
  * Every mutation writes to Dexie first and appends an outbox entry in the same
@@ -46,13 +54,20 @@ function scrub(patch: Record<string, unknown>) {
   return rest
 }
 
-export async function createJob(
-  input: Omit<Job, 'id' | 'created_at' | 'updated_at' | 'deleted_at' | 'started_at' | 'completed_at'>,
-): Promise<string> {
+type NewJob = Omit<
+  Job,
+  'id' | 'created_at' | 'updated_at' | 'deleted_at' | 'started_at' | 'completed_at' | 'template_id' | 'period_key'
+> &
+  // Only the generator fills these in; every other caller is making a one-off job.
+  Partial<Pick<Job, 'template_id' | 'period_key'>>
+
+export async function createJob(input: NewJob): Promise<string> {
   const id = newId()
   const at = now()
   const row: Job = {
     ...input,
+    template_id: input.template_id ?? null,
+    period_key: input.period_key ?? null,
     id,
     created_at: at,
     updated_at: at,
@@ -202,4 +217,84 @@ export async function updateProfile(id: string, patch: Partial<Profile>) {
     await db.profiles.put({ ...existing, ...patch, updated_at: now() })
     await enqueue('profiles', 'update', id, scrub(patch))
   })
+}
+
+// ---------------------------------------------------------------------------
+// Recurring work
+// ---------------------------------------------------------------------------
+
+export async function createJobTemplate(
+  input: Omit<JobTemplate, 'id' | 'created_at' | 'updated_at' | 'deleted_at'>,
+): Promise<string> {
+  const id = newId()
+  const at = now()
+  const row: JobTemplate = { ...input, id, created_at: at, updated_at: at, deleted_at: null }
+
+  await db.transaction('rw', [db.job_templates, db.outbox], async () => {
+    await db.job_templates.put(row)
+    await enqueue('job_templates', 'insert', id, { ...scrub(row), id })
+  })
+
+  return id
+}
+
+export async function updateJobTemplate(id: string, patch: Partial<JobTemplate>) {
+  await db.transaction('rw', [db.job_templates, db.outbox], async () => {
+    const existing = await db.job_templates.get(id)
+    if (!existing) throw new Error(`No local copy of template ${id}`)
+    await db.job_templates.put({ ...existing, ...patch, updated_at: now() })
+    await enqueue('job_templates', 'update', id, scrub(patch))
+  })
+}
+
+export type Generated = { created: number; skipped: number }
+
+/**
+ * Turn templates into jobs for one period.
+ *
+ * The skip is the important part. Pressing Generate twice for August must not
+ * produce two sets of August returns, and somebody will press it twice — so this
+ * checks what already exists for each template and period before writing. A
+ * unique index in Postgres catches the case this cannot see: two managers
+ * generating the same period at the same moment from different devices.
+ */
+export async function generateJobsForPeriod(
+  templates: JobTemplate[],
+  period: { key: string; label: string },
+  createdBy: string,
+  dueDate: string | null,
+): Promise<Generated> {
+  let created = 0
+  let skipped = 0
+
+  for (const template of templates) {
+    const already = await db.jobs
+      .where('[template_id+period_key]')
+      .equals([template.id, period.key])
+      .count()
+
+    if (already > 0) {
+      skipped += 1
+      continue
+    }
+
+    await createJob({
+      client_id: template.client_id,
+      title: template.title,
+      description: template.description,
+      category: template.category,
+      period_label: period.label,
+      assigned_to: template.assigned_to,
+      assigned_by: createdBy,
+      reviewer_id: template.reviewer_id,
+      status: 'not_started',
+      priority: template.priority,
+      due_date: dueDate,
+      template_id: template.id,
+      period_key: period.key,
+    })
+    created += 1
+  }
+
+  return { created, skipped }
 }

@@ -8,6 +8,7 @@ import { BoardPage } from '../features/jobs/BoardPage'
 import { JobDetailPage } from '../features/jobs/JobDetailPage'
 import { JobFormPage } from '../features/jobs/JobFormPage'
 import { MyWorkPage } from '../features/jobs/MyWorkPage'
+import { RecurringPage } from '../features/recurring/RecurringPage'
 import { SettingsPage } from '../features/settings/SettingsPage'
 import { TeamPage } from '../features/team/TeamPage'
 import { isConfigured } from '../lib/supabase'
@@ -78,6 +79,7 @@ export function App() {
             <Route element={<RequireRole allow={['partner', 'manager']} />}>
               <Route path="board" element={<BoardPage />} />
               <Route path="jobs/new" element={<JobFormPage />} />
+              <Route path="recurring" element={<RecurringPage />} />
               <Route path="jobs/:id/edit" element={<JobFormPage />} />
             </Route>
 

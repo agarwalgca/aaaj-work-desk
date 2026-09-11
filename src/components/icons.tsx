@@ -46,6 +46,13 @@ export const TeamIcon = (p: IconProps) => (
   </Icon>
 )
 
+export const RecurringIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M3.5 10a6.5 6.5 0 0 1 11-4.7M16.5 10a6.5 6.5 0 0 1-11 4.7" />
+    <path d="M14.5 2.5v3h-3M5.5 17.5v-3h3" />
+  </Icon>
+)
+
 export const SettingsIcon = (p: IconProps) => (
   <Icon {...p}>
     <circle cx="10" cy="10" r="2.5" />

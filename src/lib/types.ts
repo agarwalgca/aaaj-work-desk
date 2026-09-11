@@ -28,6 +28,8 @@ export type JobStatus =
 
 export type JobPriority = 'low' | 'normal' | 'high' | 'urgent'
 
+export type Frequency = 'monthly' | 'quarterly' | 'half_yearly' | 'annual'
+
 /** A job in one of these is finished; everything else is the working set. */
 export const CLOSED_STATUSES: JobStatus[] = ['completed', 'cancelled']
 
@@ -84,6 +86,26 @@ export type Job = Row & {
   due_date: string | null
   started_at: string | null
   completed_at: string | null
+  /** Set when the job was generated from a recurring template. */
+  template_id: string | null
+  /** Which period of that template this job covers, e.g. "M-2026-08". */
+  period_key: string | null
+}
+
+/**
+ * A standing arrangement: this client has this job every month, and this person
+ * does it. Generates nothing by itself — a manager presses Generate.
+ */
+export type JobTemplate = Row & {
+  client_id: string
+  title: string
+  description: string
+  category: JobCategory
+  frequency: Frequency
+  assigned_to: string | null
+  reviewer_id: string | null
+  priority: JobPriority
+  is_active: boolean
 }
 
 export type JobStatusHistory = Row & {
@@ -102,7 +124,14 @@ export type JobComment = Row & {
 }
 
 /** Tables that sync. Order matters on pull: a job needs its client to exist first. */
-export const SYNCED_TABLES = ['profiles', 'clients', 'jobs', 'job_status_history', 'job_comments'] as const
+export const SYNCED_TABLES = [
+  'profiles',
+  'clients',
+  'job_templates',
+  'jobs',
+  'job_status_history',
+  'job_comments',
+] as const
 export type SyncedTable = (typeof SYNCED_TABLES)[number]
 
 export type OutboxEntry = {

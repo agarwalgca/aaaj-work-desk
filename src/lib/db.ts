@@ -4,6 +4,7 @@ import type {
   Cursor,
   Draft,
   Job,
+  JobTemplate,
   JobComment,
   JobStatusHistory,
   OutboxEntry,
@@ -20,6 +21,7 @@ class WorkDeskDB extends Dexie {
   profiles!: EntityTable<Profile, 'id'>
   clients!: EntityTable<Client, 'id'>
   jobs!: EntityTable<Job, 'id'>
+  job_templates!: EntityTable<JobTemplate, 'id'>
   job_status_history!: EntityTable<JobStatusHistory, 'id'>
   job_comments!: EntityTable<JobComment, 'id'>
   outbox!: EntityTable<OutboxEntry, 'seq'>
@@ -41,6 +43,12 @@ class WorkDeskDB extends Dexie {
 
     // Free-text that has been typed but not sent. Local only, never pushed.
     this.version(2).stores({ drafts: 'key, updated_at' })
+
+    // Recurring work. Only partners and managers ever sync these.
+    this.version(3).stores({
+      job_templates: 'id, client_id, frequency, is_active, updated_at',
+      jobs: 'id, assigned_to, reviewer_id, client_id, status, due_date, completed_at, updated_at, template_id, [assigned_to+status], [template_id+period_key]',
+    })
   }
 }
 
@@ -57,6 +65,7 @@ export async function clearLocalData() {
       db.profiles,
       db.clients,
       db.jobs,
+      db.job_templates,
       db.job_status_history,
       db.job_comments,
       db.outbox,
@@ -68,6 +77,7 @@ export async function clearLocalData() {
         db.profiles.clear(),
         db.clients.clear(),
         db.jobs.clear(),
+        db.job_templates.clear(),
         db.job_status_history.clear(),
         db.job_comments.clear(),
         db.outbox.clear(),

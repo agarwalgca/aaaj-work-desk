@@ -93,23 +93,25 @@ async function pullTable(table: SyncedTable, now: Date): Promise<number> {
  * not list, this device should not be holding.
  */
 async function reconcile(now: Date) {
-  const [jobIds, clientIds, profileIds] = await Promise.all([
+  const [jobIds, clientIds, profileIds, templateIds] = await Promise.all([
     supabase.from('jobs').select('id').is('deleted_at', null).or(jobWindowFilter(now)),
     supabase.from('clients').select('id').is('deleted_at', null),
     supabase.from('profiles').select('id').is('deleted_at', null),
+    supabase.from('job_templates').select('id').is('deleted_at', null),
   ])
 
-  for (const result of [jobIds, clientIds, profileIds]) {
+  for (const result of [jobIds, clientIds, profileIds, templateIds]) {
     if (result.error) throw new Error(`reconcile: ${result.error.message}`)
   }
 
   const visibleJobs = new Set((jobIds.data ?? []).map((r) => r.id))
   const visibleClients = new Set((clientIds.data ?? []).map((r) => r.id))
   const visibleProfiles = new Set((profileIds.data ?? []).map((r) => r.id))
+  const visibleTemplates = new Set((templateIds.data ?? []).map((r) => r.id))
 
   await db.transaction(
     'rw',
-    [db.jobs, db.clients, db.profiles, db.job_status_history, db.job_comments],
+    [db.jobs, db.clients, db.profiles, db.job_templates, db.job_status_history, db.job_comments],
     async () => {
       const staleJobs = (await db.jobs.toArray())
         .filter((j) => !visibleJobs.has(j.id))
@@ -130,6 +132,13 @@ async function reconcile(now: Date) {
         .filter((p) => !visibleProfiles.has(p.id))
         .map((p) => p.id)
       if (staleProfiles.length) await db.profiles.bulkDelete(staleProfiles)
+
+      // A manager demoted to staff stops seeing templates entirely, and the rows
+      // have to leave with the permission.
+      const staleTemplates = (await db.job_templates.toArray())
+        .filter((t) => !visibleTemplates.has(t.id))
+        .map((t) => t.id)
+      if (staleTemplates.length) await db.job_templates.bulkDelete(staleTemplates)
     },
   )
 }

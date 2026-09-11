@@ -51,7 +51,10 @@ Run these once, in the Supabase SQL editor, in order:
 
 1. `supabase/migrations/0001_init.sql` — tables, enums, triggers, RLS, the
    username lookup, and the `auth.users` → `profiles` trigger. Re-runnable.
-2. `supabase/seed.sql` — three fictional clients, six people and twenty-five jobs.
+2. `supabase/migrations/0002_job_templates.sql` — recurring job templates, plus the
+   two columns on `jobs` recording which template and period a job came from.
+   Re-runnable.
+3. `supabase/seed.sql` — three fictional clients, six people and twenty-five jobs.
    Development data. It expects the partner account (`gaurav@aaaj.co.in`) to exist
    already and will stop with a clear message if it does not.
 
@@ -73,6 +76,23 @@ Before the firm goes live:
 ```sql
 delete from auth.users where email like '%@seed.aaaj.co.in';
 ```
+
+## Recurring work
+
+A template says "this client has a GST return every month, and Kavya does it".
+Frequencies are monthly, quarterly, half-yearly and annual, and all of them are
+financial-year shaped: Q1 is Apr–Jun, H2 ends on 31 March, and a period reads
+`Aug-2026`, `Q2 FY 2026-27` or `FY 2025-26`.
+
+Templates generate nothing by themselves. There is no server here to wake up on
+the first of the month, so a manager opens **Recurring**, presses Generate, picks
+a period, and sees exactly which jobs are about to be created before any of them
+are. Anything already generated for that period is listed as such and skipped, so
+pressing Generate twice for August cannot produce two sets of August returns.
+
+The due date is not derived. Statutory dates move, and an app that quietly asserts
+a wrong one is worse than one that asks — a manager sets a date for the batch, or
+leaves it blank and sets it per job.
 
 ## How syncing works
 
@@ -121,6 +141,7 @@ thing that would change if Phase 2 ever adds one.
 | Job detail  | ✓       | ✓       | own jobs only |
 | Reassign    | ✓       | ✓       | —     |
 | Clients     | ✓ edit  | ✓ edit  | read  |
+| Recurring   | ✓       | ✓       | —     |
 | Team        | ✓       | —       | —     |
 
 The nav and the controls follow this table, but it is courtesy rather than

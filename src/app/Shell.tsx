@@ -11,6 +11,7 @@ import {
   ClientsIcon,
   MoreIcon,
   MyWorkIcon,
+  RecurringIcon,
   SettingsIcon,
   TeamIcon,
 } from '../components/icons'
@@ -32,6 +33,13 @@ const NAV: Array<{
   { to: '/my-work', label: 'My Work', Icon: MyWorkIcon, mobile: true, roles: null },
   { to: '/board', label: 'Board', Icon: BoardIcon, mobile: true, roles: ['partner', 'manager'] },
   { to: '/clients', label: 'Clients', Icon: ClientsIcon, mobile: true, roles: null },
+  {
+    to: '/recurring',
+    label: 'Recurring',
+    Icon: RecurringIcon,
+    mobile: false,
+    roles: ['partner', 'manager'],
+  },
   { to: '/team', label: 'Team', Icon: TeamIcon, mobile: false, roles: ['partner'] },
   { to: '/settings', label: 'Settings', Icon: SettingsIcon, mobile: false, roles: null },
 ]

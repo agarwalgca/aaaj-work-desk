@@ -1,8 +1,15 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { db } from '../db'
-import type { Job } from '../types'
+import type { Job, JobTemplate } from '../types'
 import { backoffMs, isPermanent } from './flush'
-import { addComment, changeJobStatus, createJob, pendingCount, updateJob } from './outbox'
+import {
+  addComment,
+  changeJobStatus,
+  createJob,
+  generateJobsForPeriod,
+  pendingCount,
+  updateJob,
+} from './outbox'
 
 const JOB: Job = {
   id: 'job-1',
@@ -22,6 +29,8 @@ const JOB: Job = {
   created_at: '2026-09-01T00:00:00.000Z',
   updated_at: '2026-09-01T00:00:00.000Z',
   deleted_at: null,
+  template_id: null,
+  period_key: null,
 }
 
 beforeEach(async () => {
@@ -117,5 +126,79 @@ describe('deciding whether to retry', () => {
     expect(backoffMs(1)).toBe(2_000)
     expect(backoffMs(4)).toBe(16_000)
     expect(backoffMs(20)).toBe(300_000)
+  })
+})
+
+describe('generating recurring jobs', () => {
+  const template = (patch: Partial<JobTemplate> = {}): JobTemplate => ({
+    id: crypto.randomUUID(),
+    client_id: 'client-1',
+    title: 'GSTR-3B and GSTR-1 filing',
+    description: '',
+    category: 'gst_return',
+    frequency: 'monthly',
+    assigned_to: 'staff-1',
+    reviewer_id: 'manager-1',
+    priority: 'normal',
+    is_active: true,
+    created_at: '2026-01-01T00:00:00.000Z',
+    updated_at: '2026-01-01T00:00:00.000Z',
+    deleted_at: null,
+    ...patch,
+  })
+
+  const august = { key: 'M-2026-08', label: 'Aug-2026' }
+
+  it('creates one job per template and carries the template through', async () => {
+    const templates = [template(), template({ client_id: 'client-2' })]
+    const result = await generateJobsForPeriod(templates, august, 'manager-1', '2026-09-20')
+
+    expect(result).toEqual({ created: 2, skipped: 0 })
+
+    const jobs = await db.jobs.toArray()
+    expect(jobs).toHaveLength(2)
+    // Dexie returns rows in primary-key order and the keys are random uuids, so
+    // pick the job out by its template rather than assuming a position.
+    const first = jobs.find((j) => j.template_id === templates[0].id)!
+    expect(first).toMatchObject({
+      period_label: 'Aug-2026',
+      period_key: 'M-2026-08',
+      template_id: templates[0].id,
+      status: 'not_started',
+      due_date: '2026-09-20',
+      assigned_to: 'staff-1',
+    })
+  })
+
+  it('refuses to create August twice', async () => {
+    const templates = [template()]
+    await generateJobsForPeriod(templates, august, 'manager-1', null)
+    const second = await generateJobsForPeriod(templates, august, 'manager-1', null)
+
+    expect(second).toEqual({ created: 0, skipped: 1 })
+    expect(await db.jobs.count()).toBe(1)
+  })
+
+  it('still generates the next period', async () => {
+    const templates = [template()]
+    await generateJobsForPeriod(templates, august, 'manager-1', null)
+    const september = await generateJobsForPeriod(
+      templates,
+      { key: 'M-2026-09', label: 'Sep-2026' },
+      'manager-1',
+      null,
+    )
+
+    expect(september).toEqual({ created: 1, skipped: 0 })
+    expect((await db.jobs.toArray()).map((j) => j.period_label).sort()).toEqual([
+      'Aug-2026',
+      'Sep-2026',
+    ])
+  })
+
+  it('queues every generated job for the server', async () => {
+    await generateJobsForPeriod([template(), template()], august, 'manager-1', null)
+    const queue = await db.outbox.orderBy('seq').toArray()
+    expect(queue.map((e) => `${e.op} ${e.table_name}`)).toEqual(['insert jobs', 'insert jobs'])
   })
 })

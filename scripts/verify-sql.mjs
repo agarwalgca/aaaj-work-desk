@@ -138,13 +138,19 @@ async function refuses(name, uid, statement, params = [], by = 'either') {
 // ---------------------------------------------------------------------------
 
 console.log('\n— migration —')
-try {
-  await db.exec(sql('supabase/migrations/0001_init.sql'))
-  report('0001_init.sql applies', true)
-} catch (e) {
-  report('0001_init.sql applies', false, e.message)
-  console.log('\nCannot continue without the schema.')
-  process.exit(1)
+for (const file of [
+  'supabase/migrations/0001_init.sql',
+  'supabase/migrations/0002_job_templates.sql',
+]) {
+  const name = file.split('/').pop()
+  try {
+    await db.exec(sql(file))
+    report(`${name} applies`, true)
+  } catch (e) {
+    report(`${name} applies`, false, e.message)
+    console.log('\nCannot continue without the schema.')
+    process.exit(1)
+  }
 }
 
 console.log('\n— seed —')
@@ -398,6 +404,79 @@ console.log('\n— append-only tables —')
     STAFF_A,
     `insert into public.job_comments (job_id, author_id, body) values ($1, $2, 'Not me.')`,
     [myJob.rows[0].id, STAFF_B],
+  )
+}
+
+console.log('\n— recurring templates —')
+{
+  const client = (await db.query(`select id from public.clients limit 1`)).rows[0].id
+  const staffId = must(
+    (await db.query(`select id from public.profiles where role = 'staff' limit 1`)).rows[0]?.id,
+    'a member of staff',
+  )
+
+  const made = await as(MANAGER, async () => {
+    try {
+      const r = await db.query(
+        `insert into public.job_templates (client_id, title, category, frequency, assigned_to)
+         values ($1, 'GSTR-3B and GSTR-1 filing', 'gst_return', 'monthly', $2) returning id`,
+        [client, staffId],
+      )
+      return { id: r.rows[0].id }
+    } catch (e) {
+      return { error: e.message.split('\n')[0] }
+    }
+  })
+  report('a manager may create a template', Boolean(made.id), made.error ?? '')
+
+  await refuses(
+    'staff may not create a template',
+    staffId,
+    `insert into public.job_templates (client_id, title, frequency) values ($1, 'Sneaky', 'monthly')`,
+    [client],
+  )
+
+  const staffSees = await as(staffId, () => db.query('select id from public.job_templates'))
+  report('staff do not see templates at all', staffSees.rows.length === 0, `${staffSees.rows.length} rows`)
+
+  // Generating the same period twice is what the unique index exists to stop.
+  const generate = (periodKey) =>
+    db.query(
+      `insert into public.jobs (client_id, title, category, template_id, period_key, period_label, status)
+       values ($1, 'GSTR-3B and GSTR-1 filing', 'gst_return', $2, $3, 'Aug-2026', 'not_started')`,
+      [client, made.id, periodKey],
+    )
+
+  await generate('M-2026-08')
+  let duplicateBlocked = false
+  try {
+    await generate('M-2026-08')
+  } catch (e) {
+    duplicateBlocked =
+      e.message.includes('jobs_template_period_key') || e.message.includes('duplicate key')
+  }
+  report('the same period cannot be generated twice', duplicateBlocked)
+
+  let nextPeriodOk = true
+  try {
+    await generate('M-2026-09')
+  } catch {
+    nextPeriodOk = false
+  }
+  report('the next period generates normally', nextPeriodOk)
+
+  const own = (
+    await db.query(`select id from public.jobs where template_id = $1 and period_key = 'M-2026-08'`, [
+      made.id,
+    ])
+  ).rows[0].id
+  await db.query(`update public.jobs set assigned_to = $2 where id = $1`, [own, staffId])
+  await refuses(
+    'staff may not detach a job from its template',
+    staffId,
+    `update public.jobs set template_id = null, period_key = null where id = $1`,
+    [own],
+    'trigger',
   )
 }
 

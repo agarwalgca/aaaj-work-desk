@@ -18,8 +18,16 @@ component genuinely needs focus management we would otherwise hand-roll.
 
 Out of scope for Phase 1 and not to be scaffolded for: timesheets, billing,
 compliance calendars, document storage, a client portal, notifications, charts,
-recurring-job templates, multi-firm tenancy. If one of these looks necessary,
-stop and say so rather than building it.
+multi-firm tenancy. If one of these looks necessary, stop and say so rather than
+building it.
+
+**Recurring job templates were on that list and have been deliberately added**,
+on the firm's instruction, after being raised as the highest-value thing left.
+Note what was *not* added with them: no statutory due dates. Templates decide
+which periods a job repeats over; a human still types the date. Deriving "the
+20th of the following month" would make this a compliance calendar, which is
+still out of scope and for good reason — statutory dates move, and an app that
+quietly asserts a wrong one is worse than an app that asks.
 
 ## Decisions taken while building (each reversible, none free)
 
@@ -54,6 +62,12 @@ stop and say so rather than building it.
 - **Class names for status colours are written out in full** in
   `src/components/statusStyles.ts`. Tailwind reads source text, so
   `border-status-${status}` is a class that never gets generated.
+- **Recurring jobs are generated on demand, not on a schedule.** There is no
+  server to wake up on the first of the month, so a manager presses Generate and
+  sees the list before it is created. Pressing it twice for the same period must
+  not produce two sets of returns: the client checks `[template_id+period_key]`
+  locally, and a unique index catches the case it cannot see — two managers
+  generating the same period from different devices at the same moment.
 - **A reconcile sweep, not just a cursor.** An incremental pull can only add and
   update; it cannot say that a row has *left* a device's view, which is what
   happens every time a manager reassigns a job away from someone. After each pull,
