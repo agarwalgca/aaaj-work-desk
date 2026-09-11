@@ -60,6 +60,11 @@ stop and say so rather than building it.
   one id-only query per table lists what the caller may currently see, and local
   rows missing from that list are deleted. It covers reassignment, tombstones and
   the financial-year window shifting, all with the same few lines.
+- **Hand-inserted `auth.users` rows need their token columns set to `''`.**
+  GoTrue scans `confirmation_token`, `recovery_token`, `email_change` and the rest
+  into Go strings; a NULL fails the scan and every password sign-in for that account
+  returns "Database error querying schema" without ever reaching the password.
+  `seed.sql` repairs them, version-safely, by looking the columns up first.
 - **The migration is verified locally before it is applied.** `npm run verify:sql`
   runs `0001_init.sql` and `seed.sql` against Postgres compiled to WASM (PGlite),
   with a stub `auth` schema, and asserts the permission rules. Dev-only; it never

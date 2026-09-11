@@ -61,6 +61,33 @@ values
    '{"username":"sneha","full_name":"Sneha Kulkarni"}')
 on conflict (id) do nothing;
 
+-- GoTrue reads these columns into Go strings, and a NULL is not a string: leave
+-- them unset and every password sign-in for these accounts fails with
+-- "Database error querying schema" long before the password is even checked.
+-- Inserting into auth.users by hand is what leaves them NULL, so they are coerced
+-- here. Which of them exist varies by GoTrue version, hence the lookup.
+do $$
+declare
+  col text;
+begin
+  foreach col in array array[
+    'confirmation_token', 'recovery_token', 'email_change', 'email_change_token_new',
+    'email_change_token_current', 'phone_change', 'phone_change_token',
+    'reauthentication_token'
+  ]
+  loop
+    if exists (
+      select 1 from information_schema.columns
+      where table_schema = 'auth' and table_name = 'users' and column_name = col
+    ) then
+      execute format(
+        'update auth.users set %I = %L where %I is null and email like %L',
+        col, '', col, '%@seed.aaaj.co.in'
+      );
+    end if;
+  end loop;
+end $$;
+
 -- GoTrue expects a matching identity row for a password account.
 insert into auth.identities (id, provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
 select gen_random_uuid(), u.id::text, u.id,

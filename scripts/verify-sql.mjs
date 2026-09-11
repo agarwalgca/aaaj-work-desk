@@ -45,7 +45,17 @@ await db.exec(`
     created_at         timestamptz default now(),
     updated_at         timestamptz default now(),
     raw_app_meta_data  jsonb default '{}',
-    raw_user_meta_data jsonb default '{}'
+    raw_user_meta_data jsonb default '{}',
+    -- GoTrue scans these into Go strings. Present here so the seed's NULL repair
+    -- runs locally rather than being skipped as a missing column.
+    confirmation_token          text,
+    recovery_token              text,
+    email_change                text,
+    email_change_token_new      text,
+    email_change_token_current  text,
+    phone_change                text,
+    phone_change_token          text,
+    reauthentication_token      text
   );
 
   create table auth.identities (

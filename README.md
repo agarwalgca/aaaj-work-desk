@@ -24,6 +24,7 @@ Without a `.env` the app renders setup instructions rather than a dead login for
 | `npm run icons`     | Regenerate the monogram SVGs and PWA icon set     |
 | `npm test`          | Unit tests (Vitest)                               |
 | `npm run verify:sql`| Apply the migration and seed to a throwaway Postgres and assert the permission rules |
+| `npm run verify:live`| Cache window, reassignment and conflict path, against the real project (mutates seed data and puts it back) |
 
 ## Access
 
@@ -53,6 +54,13 @@ Run these once, in the Supabase SQL editor, in order:
 2. `supabase/seed.sql` — three fictional clients, six people and twenty-five jobs.
    Development data. It expects the partner account (`gaurav@aaaj.co.in`) to exist
    already and will stop with a clear message if it does not.
+
+**A repair the seed has to do.** `seed.sql` inserts into `auth.users` directly,
+because that is the only way to create accounts with known passwords from SQL. That
+leaves GoTrue's token columns NULL, and GoTrue reads them into Go strings — so
+every password sign-in for a seeded account fails with *"Database error querying
+schema"* before the password is even checked. The seed coerces them to `''`; if you
+ever hand-insert an account, do the same.
 
 Both are checked locally first with `npm run verify:sql`, which runs them against
 Postgres compiled to WASM and asserts that staff cannot complete a job, managers
@@ -132,7 +140,8 @@ checklist for adding a table across Postgres, Dexie and the outbox.
 
 - [x] **1 — Foundation.** Scaffold, tokens, fonts, logo and icons, Supabase
       wiring, app shell, login screen.
-- [ ] 2 — Data layer: migrations, seed, RLS, Dexie, outbox, pull, pruner, flusher.
+- [x] **2 — Data layer.** Migration, seed, RLS and triggers, Dexie schema, outbox,
+      pull cursor, reconcile sweep, flusher, sync chip.
 - [x] **3 — Features.** My Work, Board, job detail, job form, Clients, Team,
       Settings, global search, role gating.
 - [x] **4 — PWA and hardening.** Manifest, service worker, install prompt,
