@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { useMe } from '../../app/useMe'
 import { Button } from '../../components/Button'
@@ -11,6 +11,13 @@ import { TextField } from '../../components/TextField'
 import { CATEGORY_OPTIONS } from '../../lib/labels'
 import { createJob, updateJob } from '../../lib/sync/outbox'
 import type { JobCategory, JobPriority } from '../../lib/types'
+import { PeriodField } from './PeriodField'
+import {
+  currentPeriodLabel,
+  defaultPeriodType,
+  detectPeriodType,
+  type PeriodType,
+} from './periodTypes'
 import { personName, useJob, useLookups } from './useJobData'
 
 type Form = {
@@ -94,9 +101,20 @@ function JobForm({ jobId, initial }: { jobId: string | undefined; initial: Form 
   const me = useMe()
   const { clients, profiles } = useLookups()
 
-  const [form, setForm] = useState<Form>(initial)
+  const [form, setForm] = useState<Form>(() => {
+    if (initial.period_label || jobId) return initial
+    // A new job almost always concerns the period we are in, so start there
+    // rather than with an empty select nobody asked to fill.
+    return { ...initial, period_label: currentPeriodLabel(defaultPeriodType(initial.category)) }
+  })
   const [busy, setBusy] = useState(false)
   const [justSaved, setJustSaved] = useState<string | null>(null)
+  // Derived from the label on first render so editing a job keeps its shape, then
+  // owned by the person: changing category must not silently relabel their job.
+  const [periodType, setPeriodType] = useState<PeriodType>(() =>
+    initial.period_label ? detectPeriodType(initial.period_label) : defaultPeriodType(initial.category),
+  )
+  const touchedPeriod = useRef(false)
 
   const activeClients = clients.filter((c) => c.is_active)
   const people = profiles.filter((p) => p.is_active)
@@ -161,7 +179,16 @@ function JobForm({ jobId, initial }: { jobId: string | undefined; initial: Form 
         <Select
           label="Category"
           value={form.category}
-          onChange={(e) => set({ category: e.target.value as JobCategory })}
+          onChange={(e) => {
+            const category = e.target.value as JobCategory
+            set({ category })
+            // Only steer the period while the person has not chosen one.
+            if (!touchedPeriod.current) {
+              const next = defaultPeriodType(category)
+              setPeriodType(next)
+              set({ period_label: currentPeriodLabel(next) })
+            }
+          }}
           options={CATEGORY_OPTIONS}
         />
 
@@ -174,13 +201,19 @@ function JobForm({ jobId, initial }: { jobId: string | undefined; initial: Form 
           />
         </div>
 
-        <TextField
-          label="Period"
+        <PeriodField
           value={form.period_label}
-          onChange={(e) => set({ period_label: e.target.value })}
-          placeholder="Aug-2026 or FY 2025-26"
-          hint="Free text — whatever the firm calls it"
+          type={periodType}
+          onChangeValue={(period_label) => {
+            touchedPeriod.current = true
+            set({ period_label })
+          }}
+          onChangeType={(next) => {
+            touchedPeriod.current = true
+            setPeriodType(next)
+          }}
         />
+
         <TextField
           label="Due date"
           type="date"
