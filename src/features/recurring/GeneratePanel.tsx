@@ -115,7 +115,7 @@ export function GeneratePanel({
           value={dueDate}
           onChange={(e) => setDueDate(e.target.value)}
           className="font-mono"
-          hint="Applied to every job created now"
+          hint="Leave blank to use each one's own rule"
         />
       </div>
 
@@ -172,9 +172,9 @@ export function GeneratePanel({
             <Button variant="ghost" onClick={onDone}>
               Cancel
             </Button>
-            {!dueDate && toCreate.length > 0 && (
+            {dueDate && toCreate.length > 0 && (
               <span className="text-ink-soft text-xs">
-                Without a due date these are created undated — you can set one per job later.
+                This date overrides every rule below.
               </span>
             )}
           </div>

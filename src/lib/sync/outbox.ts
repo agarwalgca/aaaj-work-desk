@@ -1,3 +1,4 @@
+import { dueDateFor } from '../../features/recurring/periods'
 import { db } from '../db'
 import type {
   Client,
@@ -260,9 +261,10 @@ export type Generated = { created: number; skipped: number }
  */
 export async function generateJobsForPeriod(
   templates: JobTemplate[],
-  period: { key: string; label: string },
+  period: { key: string; label: string; end: Date },
   createdBy: string,
-  dueDate: string | null,
+  /** One date for the whole batch. Null means use each template's own rule. */
+  dueDateOverride: string | null,
 ): Promise<Generated> {
   let created = 0
   let skipped = 0
@@ -289,7 +291,11 @@ export async function generateJobsForPeriod(
       reviewer_id: template.reviewer_id,
       status: 'not_started',
       priority: template.priority,
-      due_date: dueDate,
+      due_date:
+        dueDateOverride ??
+        (template.due_day === null
+          ? null
+          : dueDateFor(period.end, template.due_day, template.due_months_after)),
       template_id: template.id,
       period_key: period.key,
     })

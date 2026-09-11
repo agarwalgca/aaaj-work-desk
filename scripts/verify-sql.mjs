@@ -15,7 +15,7 @@ import { PGlite } from '@electric-sql/pglite'
 import { pgcrypto } from '@electric-sql/pglite/contrib/pgcrypto'
 // The TypeScript the client uses, imported directly so the two implementations of
 // the financial-year rule can be compared rather than eyeballed.
-import { periodContaining } from '../src/features/recurring/periods.ts'
+import { dueDateFor, periodContaining } from '../src/features/recurring/periods.ts'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const sql = (p) => readFileSync(resolve(root, p), 'utf8')
@@ -145,6 +145,7 @@ for (const file of [
   'supabase/migrations/0001_init.sql',
   'supabase/migrations/0002_job_templates.sql',
   'supabase/migrations/0003_generate_recurring.sql',
+  'supabase/migrations/0004_due_date_rules.sql',
 ]) {
   const name = file.split('/').pop()
   try {
@@ -534,6 +535,42 @@ console.log('\n— period arithmetic: SQL against TypeScript —')
   )
 }
 
+console.log('\n— due-date rules: SQL against TypeScript —')
+{
+  const ends = ['2026-08-31', '2026-06-30', '2026-03-31', '2026-12-31', '2027-01-31', '2028-01-31']
+  const days = [1, 10, 15, 20, 25, 28, 30, 31]
+  const offsets = [0, 1, 2, 4, 6]
+
+  const mismatches = []
+  let checked = 0
+  for (const ends_on of ends) {
+    for (const day of days) {
+      for (const after of offsets) {
+        checked += 1
+        const sqlDate = (
+          await db.query(`select public.due_date_for($1::date, $2::int, $3::int) as d`, [
+            ends_on,
+            day,
+            after,
+          ])
+        ).rows[0].d
+        const sql = `${sqlDate.getFullYear()}-${String(sqlDate.getMonth() + 1).padStart(2, '0')}-${String(sqlDate.getDate()).padStart(2, '0')}`
+        const ts = dueDateFor(new Date(`${ends_on}T12:00:00`), day, after)
+        if (sql !== ts) mismatches.push(`${ends_on} day ${day} +${after}m: sql ${sql} vs ts ${ts}`)
+      }
+    }
+  }
+
+  report(
+    `SQL and TypeScript agree on all ${checked} due-date rules`,
+    mismatches.length === 0,
+    mismatches.slice(0, 3).join('\n        '),
+  )
+
+  const none = (await db.query(`select public.due_date_for('2026-08-31'::date, null, 1) as d`)).rows[0].d
+  report('no rule means no date', none === null)
+}
+
 console.log('\n— the scheduled generator —')
 {
   await db.query(`delete from public.jobs where template_id is not null`)
@@ -547,8 +584,17 @@ console.log('\n— the scheduled generator —')
       [client, title, freq],
     )
 
-  await mk('GSTR-3B and GSTR-1 filing', 'monthly')
-  await mk('TDS return 26Q', 'quarterly')
+  // Two with a firm rule, one without, so both paths are exercised.
+  await db.query(
+    `insert into public.job_templates (client_id, title, category, frequency, due_day, due_months_after)
+     values ($1, 'GSTR-3B and GSTR-1 filing', 'gst_return', 'monthly', 20, 1)`,
+    [client],
+  )
+  await db.query(
+    `insert into public.job_templates (client_id, title, category, frequency, due_day, due_months_after)
+     values ($1, 'TDS return 26Q', 'tds', 'quarterly', 31, 1)`,
+    [client],
+  )
   await mk('Statutory audit', 'annual')
 
   const run = async (onDate) =>
@@ -578,10 +624,33 @@ console.log('\n— the scheduled generator —')
     (await labels()).join(', '),
   )
 
-  const dated = await db.query(
-    `select count(*)::int as n from public.jobs where template_id is not null and due_date is not null`,
+  const withRule = await db.query(
+    `select period_label, due_date from public.jobs
+     where template_id is not null and title like 'GSTR%' order by period_label`,
   )
-  report('generated jobs carry no invented due date', dated.rows[0].n === 0)
+  const sep = withRule.rows.find((r) => r.period_label === 'Sep-2026')
+  report(
+    'a template with a rule gets the date the firm set',
+    sep?.due_date?.toISOString().slice(0, 10) === '2026-10-20',
+    `Sep-2026 due ${sep?.due_date?.toISOString().slice(0, 10)} (rule: 20th, 1 month after)`,
+  )
+
+  const q2 = (
+    await db.query(
+      `select due_date from public.jobs where template_id is not null and title like 'TDS%' limit 1`,
+    )
+  ).rows[0]
+  report(
+    'a quarter ending 30 Sep is due 31 Oct',
+    q2?.due_date?.toISOString().slice(0, 10) === '2026-10-31',
+    String(q2?.due_date?.toISOString().slice(0, 10)),
+  )
+
+  const noRule = await db.query(
+    `select count(*)::int as n from public.jobs
+     where template_id is not null and title = 'Statutory audit' and due_date is not null`,
+  )
+  report('a template without a rule still invents nothing', noRule.rows[0].n === 0)
 }
 
 console.log('\n— new account —')

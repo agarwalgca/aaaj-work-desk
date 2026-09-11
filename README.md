@@ -58,7 +58,9 @@ Run these once, in the Supabase SQL editor, in order:
    functions and the monthly schedule that creates recurring jobs. **Enable
    `pg_cron` first** (Database → Extensions), or the file applies without
    scheduling anything and says so. Re-runnable.
-4. `supabase/seed.sql` — three fictional clients, six people and twenty-five jobs.
+4. `supabase/migrations/0004_due_date_rules.sql` — the optional due-date rule on a
+   template, and the arithmetic behind it. Re-runnable.
+5. `supabase/seed.sql` — three fictional clients, six people and twenty-five jobs.
    Development data. It expects the partner account (`gaurav@aaaj.co.in`) to exist
    already and will stop with a clear message if it does not.
 
@@ -107,9 +109,22 @@ The financial-year arithmetic exists twice: in `periods.ts` for the app and in
 date-and-frequency combinations, because two implementations of one rule is
 exactly the kind of thing that drifts quietly.
 
-The due date is not derived. Statutory dates move, and an app that quietly asserts
-a wrong one is worse than one that asks — a manager sets a date for the batch, or
-leaves it blank and sets it per job.
+### Due dates
+
+A template can carry a due-date rule, stated the way a deadline is spoken: *the
+20th, the month after the period ends*. Generated jobs get that date, and the form
+works the rule through on real periods as you set it — `Aug-2026 → due 20 Sep
+2026` — so an off-by-one is caught before thirty jobs carry it. The 31st of a
+30-day month becomes the 30th rather than rolling into the next.
+
+**This is the firm's own figure and nothing else.** The app ships no statutory
+dates, holds no compliance master, and knows nothing about the law. If a deadline
+moves, a partner changes one rule and every future job follows; every individual
+job stays editable. That distinction is the reason a due-date rule is in and a
+compliance calendar is still out — the firm asserts the date, never the software.
+
+Leave the day blank and jobs are created undated. A date typed on the Generate
+panel overrides every rule for that batch.
 
 ## How syncing works
 

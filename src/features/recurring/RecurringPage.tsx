@@ -13,7 +13,8 @@ import { createJobTemplate, updateJobTemplate } from '../../lib/sync/outbox'
 import type { Frequency, JobCategory, JobPriority, JobTemplate } from '../../lib/types'
 import { personName, useLookups } from '../jobs/useJobData'
 import { GeneratePanel } from './GeneratePanel'
-import { FREQUENCIES, FREQUENCY_LABEL } from './periods'
+import { formatDate } from '../../lib/dates'
+import { FREQUENCIES, FREQUENCY_LABEL, dueDateFor, periodContaining } from './periods'
 
 /**
  * Standing arrangements: this client has this job every month, and this person
@@ -135,6 +136,8 @@ function TemplateForm({
     reviewer_id: template?.reviewer_id ?? '',
     priority: (template?.priority ?? 'normal') as JobPriority,
     description: template?.description ?? '',
+    due_day: template?.due_day === null || template?.due_day === undefined ? '' : String(template.due_day),
+    due_months_after: String(template?.due_months_after ?? 1),
   })
 
   const set = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }))
@@ -150,6 +153,8 @@ function TemplateForm({
       assigned_to: form.assigned_to || null,
       reviewer_id: form.reviewer_id || null,
       priority: form.priority,
+      due_day: form.due_day === '' ? null : Number(form.due_day),
+      due_months_after: Number(form.due_months_after) || 0,
     }
     if (template) await updateJobTemplate(template.id, shape)
     else await createJobTemplate({ ...shape, is_active: true })
@@ -221,6 +226,43 @@ function TemplateForm({
         ]}
       />
 
+      <div className="border-rule sm:col-span-2 sm:border-t sm:pt-4">
+        <p className="text-ink-soft text-xs">
+          <strong className="text-ink">When it is due.</strong> The firm&rsquo;s own rule, not a
+          statutory one — nothing here knows the law. Leave the day blank and generated jobs
+          arrive undated. A manager can change any individual job.
+        </p>
+      </div>
+
+      <Select
+        label="Due on the"
+        value={form.due_day}
+        onChange={(e) => set({ due_day: e.target.value })}
+        options={[
+          { value: '', label: 'No automatic date' },
+          ...Array.from({ length: 31 }, (_, i) => ({ value: String(i + 1), label: dayLabel(i + 1) })),
+        ]}
+      />
+      <Select
+        label="Of the month"
+        value={form.due_months_after}
+        onChange={(e) => set({ due_months_after: e.target.value })}
+        disabled={form.due_day === ''}
+        options={[
+          { value: '0', label: 'the period ends in' },
+          { value: '1', label: 'after the period ends' },
+          ...[2, 3, 4, 5, 6, 9, 12].map((n) => ({ value: String(n), label: `${n} months after` })),
+        ]}
+      />
+
+      <div className="sm:col-span-2">
+        <DueRulePreview
+          frequency={form.frequency}
+          day={form.due_day === '' ? null : Number(form.due_day)}
+          monthsAfter={Number(form.due_months_after) || 0}
+        />
+      </div>
+
       <div className="sm:col-span-2">
         <Textarea
           label="Description"
@@ -247,6 +289,63 @@ function TemplateForm({
         </Button>
         {!valid && <span className="text-ink-soft text-xs">A client and a title are the minimum.</span>}
       </div>
+    </div>
+  )
+}
+
+function dayLabel(day: number): string {
+  const suffix =
+    day % 10 === 1 && day !== 11
+      ? 'st'
+      : day % 10 === 2 && day !== 12
+        ? 'nd'
+        : day % 10 === 3 && day !== 13
+          ? 'rd'
+          : 'th'
+  return `${day}${suffix}`
+}
+
+/**
+ * The rule, worked through on a real period.
+ *
+ * An abstract "20th, 1 month after" is easy to set wrong and hard to check. Seeing
+ * "Aug-2026 → due 20 Sep 2026" written out is what catches an off-by-one before
+ * thirty jobs carry it.
+ */
+function DueRulePreview({
+  frequency,
+  day,
+  monthsAfter,
+}: {
+  frequency: Frequency
+  day: number | null
+  monthsAfter: number
+}) {
+  if (day === null) {
+    return (
+      <p className="rounded-control border-rule text-ink-soft border border-dashed px-3 py-2 text-xs">
+        Jobs will be created without a due date.
+      </p>
+    )
+  }
+
+  // The two periods before this one, so the rule is shown against real dates.
+  const now = new Date()
+  const examples = [periodContaining(now, frequency)]
+  const earlier = new Date(examples[0].start)
+  earlier.setDate(earlier.getDate() - 1)
+  examples.push(periodContaining(earlier, frequency))
+
+  return (
+    <div className="rounded-control border-rule bg-brass-wash border px-3 py-2">
+      <p className="text-ink-soft text-xs">For example</p>
+      <ul className="mt-1 grid gap-0.5">
+        {examples.reverse().map((p) => (
+          <li key={p.key} className="font-mono text-xs">
+            {p.label} → due {formatDate(dueDateFor(p.end, day, monthsAfter))}
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }

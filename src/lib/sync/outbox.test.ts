@@ -141,13 +141,15 @@ describe('generating recurring jobs', () => {
     reviewer_id: 'manager-1',
     priority: 'normal',
     is_active: true,
+    due_day: null,
+    due_months_after: 1,
     created_at: '2026-01-01T00:00:00.000Z',
     updated_at: '2026-01-01T00:00:00.000Z',
     deleted_at: null,
     ...patch,
   })
 
-  const august = { key: 'M-2026-08', label: 'Aug-2026' }
+  const august = { key: 'M-2026-08', label: 'Aug-2026', end: new Date(2026, 7, 31) }
 
   it('creates one job per template and carries the template through', async () => {
     const templates = [template(), template({ client_id: 'client-2' })]
@@ -184,7 +186,7 @@ describe('generating recurring jobs', () => {
     await generateJobsForPeriod(templates, august, 'manager-1', null)
     const september = await generateJobsForPeriod(
       templates,
-      { key: 'M-2026-09', label: 'Sep-2026' },
+      { key: 'M-2026-09', label: 'Sep-2026', end: new Date(2026, 8, 30) },
       'manager-1',
       null,
     )
@@ -200,5 +202,49 @@ describe('generating recurring jobs', () => {
     await generateJobsForPeriod([template(), template()], august, 'manager-1', null)
     const queue = await db.outbox.orderBy('seq').toArray()
     expect(queue.map((e) => `${e.op} ${e.table_name}`)).toEqual(['insert jobs', 'insert jobs'])
+  })
+})
+
+describe('due dates on generated jobs', () => {
+  const template = (patch: Partial<JobTemplate> = {}): JobTemplate => ({
+    id: crypto.randomUUID(),
+    client_id: 'client-1',
+    title: 'GSTR-3B and GSTR-1 filing',
+    description: '',
+    category: 'gst_return',
+    frequency: 'monthly',
+    assigned_to: 'staff-1',
+    reviewer_id: null,
+    priority: 'normal',
+    is_active: true,
+    due_day: 20,
+    due_months_after: 1,
+    created_at: '2026-01-01T00:00:00.000Z',
+    updated_at: '2026-01-01T00:00:00.000Z',
+    deleted_at: null,
+    ...patch,
+  })
+
+  const august = { key: 'M-2026-08', label: 'Aug-2026', end: new Date(2026, 7, 31) }
+
+  it("uses the firm's rule when no date is given", async () => {
+    await generateJobsForPeriod([template()], august, 'manager-1', null)
+    expect((await db.jobs.toArray())[0].due_date).toBe('2026-09-20')
+  })
+
+  it('leaves a job undated when the template has no rule', async () => {
+    await generateJobsForPeriod([template({ due_day: null })], august, 'manager-1', null)
+    expect((await db.jobs.toArray())[0].due_date).toBeNull()
+  })
+
+  it('lets a date typed at generation time override every rule', async () => {
+    await generateJobsForPeriod(
+      [template(), template({ due_day: 5, due_months_after: 2 })],
+      august,
+      'manager-1',
+      '2026-09-30',
+    )
+    const dates = (await db.jobs.toArray()).map((j) => j.due_date)
+    expect(dates).toEqual(['2026-09-30', '2026-09-30'])
   })
 })

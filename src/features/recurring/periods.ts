@@ -117,3 +117,37 @@ export function recentPeriods(on: Date, frequency: Frequency, count = 4): Period
   }
   return periods
 }
+
+/**
+ * When the work for a finished period is due, under the firm's own rule.
+ *
+ * Expressed the way a deadline is actually spoken: "the 20th of the month after
+ * the period", "the 31st, four months after the year ends". `monthsAfter` counts
+ * from the month the period ended in, so a monthly return ending 31 August with
+ * offset 1 and day 20 is due 20 September.
+ *
+ * This is the firm's figure, not a statutory one. Nothing here knows the law, and
+ * that is deliberate: an app that quietly asserts a wrong date is worse than one
+ * that asks. A manager overrides any job.
+ */
+export function dueDateFor(periodEnd: Date, day: number, monthsAfter: number): string {
+  const target = new Date(periodEnd.getFullYear(), periodEnd.getMonth() + monthsAfter, 1)
+  // "The 31st" in a 30-day month means the 30th, not the 1st of the month after.
+  const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate()
+  const safeDay = Math.min(Math.max(day, 1), lastDay)
+
+  const month = String(target.getMonth() + 1).padStart(2, '0')
+  return `${target.getFullYear()}-${month}-${String(safeDay).padStart(2, '0')}`
+}
+
+/** The rule as a sentence, for the form: "Due on the 20th, 1 month after the period ends." */
+export function describeDueRule(day: number | null, monthsAfter: number | null): string {
+  if (day === null) return 'No date set automatically'
+  const ordinal =
+    day % 10 === 1 && day !== 11 ? 'st' : day % 10 === 2 && day !== 12 ? 'nd' : day % 10 === 3 && day !== 13 ? 'rd' : 'th'
+  const when =
+    !monthsAfter ? 'in the month the period ends'
+    : monthsAfter === 1 ? 'the month after the period ends'
+    : `${monthsAfter} months after the period ends`
+  return `The ${day}${ordinal} ${when}`
+}

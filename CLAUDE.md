@@ -23,11 +23,14 @@ building it.
 
 **Recurring job templates were on that list and have been deliberately added**,
 on the firm's instruction, after being raised as the highest-value thing left.
-Note what was *not* added with them: no statutory due dates. Templates decide
-which periods a job repeats over; a human still types the date. Deriving "the
-20th of the following month" would make this a compliance calendar, which is
-still out of scope and for good reason — statutory dates move, and an app that
-quietly asserts a wrong one is worse than an app that asks.
+Templates may now also carry a **due-date rule** — "the 20th, the month after the
+period ends" — which generated jobs inherit. Read the distinction, because it is
+load-bearing: the rule is a figure **the firm sets on its own templates**, not
+knowledge the app ships. There is still no statutory calendar, no list of
+deadlines, and nothing here knows the law. If a date moves, a partner edits one
+rule. The firm asserts the date; the software never does. A compliance master —
+shipped dates the app claims authority for — stays out of scope, and that is the
+line to hold if anyone asks for it.
 
 ## Decisions taken while building (each reversible, none free)
 
@@ -73,9 +76,10 @@ quietly asserts a wrong one is worse than an app that asks.
   monthly schedule serve every frequency — a period is only created once its
   `ends_on` is in the past.
 - **The financial-year rule is implemented twice**, in `periods.ts` and in
-  `period_for()`. That is a liability, so `verify:sql` imports the TypeScript and
-  compares it against the SQL across every month of two financial years. Change
-  one, run it, and find out immediately.
+  `period_for()`, and so is the due-date rule, in `dueDateFor()` and
+  `due_date_for()`. That is a liability, so `verify:sql` imports the TypeScript and
+  compares both against the SQL — 212 period lookups and 240 due-date rules. Change
+  one side, run it, and find out immediately.
 - **A reconcile sweep, not just a cursor.** An incremental pull can only add and
   update; it cannot say that a row has *left* a device's view, which is what
   happens every time a manager reassigns a job away from someone. After each pull,

@@ -106,6 +106,10 @@ export type JobTemplate = Row & {
   reviewer_id: string | null
   priority: JobPriority
   is_active: boolean
+  /** The firm's own rule, not a statutory one. Null means no automatic date. */
+  due_day: number | null
+  /** How many months after the period ends that day falls. 1 = the month after. */
+  due_months_after: number
 }
 
 export type JobStatusHistory = Row & {
