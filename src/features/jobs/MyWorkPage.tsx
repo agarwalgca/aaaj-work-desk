@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router'
 import { EmptyState } from '../../components/EmptyState'
 import { PageHeader } from '../../components/PageHeader'
 import { useMe } from '../../app/useMe'
@@ -34,6 +35,10 @@ export function MyWorkPage() {
         >
           {showClosed ? 'Hide' : 'Show'} finished ({closed.length})
         </button>
+        {/* A style comparison, not a feature. Delete with MyWorkRoomy.tsx. */}
+        <Link to="/my-work/roomy" className="text-brass text-xs underline underline-offset-2">
+          Roomier draft
+        </Link>
       </PageHeader>
 
       {open.length === 0 && (
