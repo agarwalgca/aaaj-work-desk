@@ -23,7 +23,7 @@ const env: Record<string, string> = Object.fromEntries(
 
 const URL_ = env.VITE_SUPABASE_URL
 const ANON = env.VITE_SUPABASE_ANON_KEY
-const SEED_PASSWORD = 'WorkDesk#2026seed'
+const SEED_PASSWORD = env.SEED_PASSWORD ?? ''
 
 let failures = 0
 let skipped = 0
@@ -57,7 +57,11 @@ const priya = await signIn('priya', SEED_PASSWORD)
 
 if (!kavya || !priya) {
   console.log('FAIL  cannot sign in as the seeded accounts')
-  console.log('        Apply supabase/migrations/0001_init.sql and supabase/seed.sql first.')
+  console.log(
+    SEED_PASSWORD
+      ? '        Check SEED_PASSWORD in .env, and that the migration and seed have been applied.'
+      : '        Set SEED_PASSWORD in .env to the password the seeded accounts were created with.',
+  )
   process.exit(1)
 }
 

@@ -19,7 +19,7 @@ const env = Object.fromEntries(
     }),
 )
 
-const SEED_PASSWORD = 'WorkDesk#2026seed'
+const SEED_PASSWORD = env.SEED_PASSWORD ?? ''
 let failures = 0
 
 function report(name, ok, detail = '') {

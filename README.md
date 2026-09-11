@@ -131,6 +131,25 @@ Service workers are per **origin**, not per project. Another local app previousl
 served on the same port will keep controlling it until unregistered — clear it in
 DevTools → Application → Service workers if a stale one appears.
 
+## Deploying
+
+Pushing to `master` builds and publishes to GitHub Pages. The workflow runs the
+same checks as a local commit first — typecheck, lint, unit tests and the SQL
+assertions — so a red build never reaches the demo URL.
+
+Pages serves a project site from `/<repo>/` rather than the domain root, so the
+build takes `VITE_BASE` and everything downstream reads it: Vite's asset paths,
+the router's `basename`, and the manifest's `start_url` and `scope`, which are
+relative for exactly this reason. Pages also has no server to rewrite unknown
+paths onto the app, so the build writes `dist/404.html` as a copy of the shell —
+that is what makes a deep link work on a first visit, before the service worker
+is installed.
+
+Two repository variables have to be set (Settings → Secrets and variables →
+Actions → Variables): `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`. Both are
+public by design — the anon key is meant to be in the bundle, and every table is
+guarded by RLS.
+
 ## Conventions
 
 See [CLAUDE.md](./CLAUDE.md) — file layout, naming, design tokens, and the

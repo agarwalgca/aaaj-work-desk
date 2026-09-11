@@ -10,8 +10,17 @@
 -- from the dashboard) and pre-dates the on_auth_user_created trigger, so its
 -- profile is backfilled here rather than created by the trigger.
 --
--- Every seeded colleague shares one password so scripts/test-rls.ts can sign in
--- as each role: WorkDesk#2026seed
+-- The seeded colleagues are created with a random password nobody knows, so they
+-- exist as assignees and reviewers but cannot be signed in as. A working manager
+-- password committed to a repository is a way into the firm's data, and "it is
+-- only demo data" stops being true the day real clients are in there.
+--
+-- To run scripts/test-rls.ts, which does need to sign in as them, choose one and
+-- put the same value in .env as SEED_PASSWORD:
+--
+--   update auth.users
+--   set encrypted_password = crypt('<a password you choose>', gen_salt('bf'))
+--   where email like '%@seed.aaaj.co.in';
 
 create extension if not exists pgcrypto;
 
@@ -36,27 +45,27 @@ insert into auth.users (
 values
   ('00000000-0000-0000-0000-000000000000', '11111111-1111-4111-8111-111111111111',
    'authenticated', 'authenticated', 'priya@seed.aaaj.co.in',
-   crypt('WorkDesk#2026seed', gen_salt('bf')), now(), now(), now(),
+   crypt(gen_random_uuid()::text, gen_salt('bf')), now(), now(), now(),
    '{"provider":"email","providers":["email"]}',
    '{"username":"priya","full_name":"Priya Raman"}'),
   ('00000000-0000-0000-0000-000000000000', '22222222-2222-4222-8222-222222222222',
    'authenticated', 'authenticated', 'arjun@seed.aaaj.co.in',
-   crypt('WorkDesk#2026seed', gen_salt('bf')), now(), now(), now(),
+   crypt(gen_random_uuid()::text, gen_salt('bf')), now(), now(), now(),
    '{"provider":"email","providers":["email"]}',
    '{"username":"arjun","full_name":"Arjun Deshpande"}'),
   ('00000000-0000-0000-0000-000000000000', '33333333-3333-4333-8333-333333333333',
    'authenticated', 'authenticated', 'kavya@seed.aaaj.co.in',
-   crypt('WorkDesk#2026seed', gen_salt('bf')), now(), now(), now(),
+   crypt(gen_random_uuid()::text, gen_salt('bf')), now(), now(), now(),
    '{"provider":"email","providers":["email"]}',
    '{"username":"kavya","full_name":"Kavya Nair"}'),
   ('00000000-0000-0000-0000-000000000000', '44444444-4444-4444-8444-444444444444',
    'authenticated', 'authenticated', 'rohit@seed.aaaj.co.in',
-   crypt('WorkDesk#2026seed', gen_salt('bf')), now(), now(), now(),
+   crypt(gen_random_uuid()::text, gen_salt('bf')), now(), now(), now(),
    '{"provider":"email","providers":["email"]}',
    '{"username":"rohit","full_name":"Rohit Bhatia"}'),
   ('00000000-0000-0000-0000-000000000000', '55555555-5555-4555-8555-555555555555',
    'authenticated', 'authenticated', 'sneha@seed.aaaj.co.in',
-   crypt('WorkDesk#2026seed', gen_salt('bf')), now(), now(), now(),
+   crypt(gen_random_uuid()::text, gen_salt('bf')), now(), now(), now(),
    '{"provider":"email","providers":["email"]}',
    '{"username":"sneha","full_name":"Sneha Kulkarni"}')
 on conflict (id) do nothing;

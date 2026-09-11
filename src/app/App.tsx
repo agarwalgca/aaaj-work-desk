@@ -56,7 +56,9 @@ export function App() {
 
   return (
     <AuthProvider>
-      <BrowserRouter>
+      {/* Vite's BASE_URL, so the same build works at the domain root and under a
+          repository path on GitHub Pages. */}
+      <BrowserRouter basename={import.meta.env.BASE_URL}>
         {/* Outside the auth gate on purpose: the worker that makes a cold launch
             work offline has to be registered before anyone signs in, not after. */}
         <UpdatePrompt />
