@@ -96,6 +96,33 @@ The nav and the controls follow this table, but it is courtesy rather than
 security: every one of these rules is enforced again in Postgres, and the client
 copy exists only so nobody is shown a door that will not open.
 
+## Installing and offline
+
+The service worker precaches the app shell — HTML, JS, CSS, the self-hosted fonts
+and the icons — so opening Work Desk with no connection lands on a working
+interface rather than a browser error. Every navigation is answered from that
+cache and React Router takes over, which means a deep link opened offline reaches
+the right screen.
+
+Supabase is explicitly never cached (`NetworkOnly`). Reads come from Dexie and
+writes go through the outbox; a cached POST would be a write that looked like it
+worked and did not.
+
+A new version is offered in a bar, never applied. Taking over in the background
+reloads the tab, and the tab is where somebody is halfway through a comment.
+
+**Verifying installability.** Lighthouse dropped its PWA category in v12, so there
+is no audit to run any more. Chrome DevTools → Application → Manifest is the
+replacement: it lists the manifest fields and reports any installability error.
+What has to hold is a manifest with name, short name, `start_url`, `display:
+standalone` and 192px + 512px icons; a registered service worker with a fetch
+handler; and a secure context. All of those are in place and were checked against
+Chrome.
+
+Service workers are per **origin**, not per project. Another local app previously
+served on the same port will keep controlling it until unregistered — clear it in
+DevTools → Application → Service workers if a stale one appears.
+
 ## Conventions
 
 See [CLAUDE.md](./CLAUDE.md) — file layout, naming, design tokens, and the
@@ -108,4 +135,5 @@ checklist for adding a table across Postgres, Dexie and the outbox.
 - [ ] 2 — Data layer: migrations, seed, RLS, Dexie, outbox, pull, pruner, flusher.
 - [x] **3 — Features.** My Work, Board, job detail, job form, Clients, Team,
       Settings, global search, role gating.
-- [ ] 4 — PWA and hardening.
+- [x] **4 — PWA and hardening.** Manifest, service worker, install prompt,
+      offline cold launch, update prompt, error boundary, keyboard navigation.

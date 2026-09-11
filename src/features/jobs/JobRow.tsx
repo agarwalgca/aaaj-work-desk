@@ -18,12 +18,15 @@ export function JobRow({
   today,
   assignee,
   onQuickStatus,
+  index,
 }: {
   job: Job
   client: Client | undefined
   today: Date
   assignee?: string
   onQuickStatus?: (job: Job) => void
+  /** Position in a keyboard-navigable list. Omitted, the row is an ordinary tab stop. */
+  index?: number
 }) {
   const late = isOverdue(job, today)
 
@@ -50,13 +53,14 @@ export function JobRow({
     <li className={`border-rule bg-card relative border border-l-2 ${STATUS_EDGE[job.status]}`}>
       <Link
         to={`/jobs/${job.id}`}
+        {...(index === undefined ? {} : { 'data-row': true, tabIndex: index === 0 ? 0 : -1 })}
         onPointerDown={startHold}
         onPointerUp={endHold}
         onPointerLeave={endHold}
         onClick={(event) => {
           if (held.current) event.preventDefault()
         }}
-        className="hover:bg-brass-wash/40 block px-3 py-2.5">
+        className="hover:bg-brass-wash/40 block px-3 py-2.5 focus:outline-none focus-visible:bg-brass-wash">
         <div className="flex items-start gap-2">
           <span className="text-ink-soft shrink-0 font-mono text-xs">{client?.code ?? '—'}</span>
           <span className="min-w-0 flex-1 text-sm font-medium">{job.title}</span>

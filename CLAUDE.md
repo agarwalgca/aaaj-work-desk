@@ -33,6 +33,16 @@ stop and say so rather than building it.
   six; an icon package is more bytes and more indirection than that earns.
 - **`npx tsc --noEmit` is a no-op here** because `tsconfig.json` is a solution file.
   Use `npm run typecheck` (`tsc -b --force`).
+- **Anything that must run before sign-in lives outside the auth gate.** The
+  service-worker registration and the `beforeinstallprompt` listener both started
+  life inside screens that need a session, so neither ever ran: the shell was never
+  cached and the Install button never appeared. Registration is in `App`, above the
+  routes; the install event is caught at module scope in `src/lib/installPrompt.ts`
+  and imported for its side effect by `main.tsx`.
+- **The service worker caches the shell and nothing else.** `NetworkOnly` for
+  Supabase: a cached API response would be a second, stale source of truth
+  competing with Dexie, and a cached POST would be a write that looked like it
+  worked.
 - **Role gating in the client is presentation only.** `RequireRole` and the nav
   filter hide screens; Postgres refuses the same people regardless. A `useMe()` of
   `undefined` means the profile has not synced yet and must be waited for, not

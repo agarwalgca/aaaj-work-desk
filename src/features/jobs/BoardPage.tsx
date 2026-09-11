@@ -8,6 +8,7 @@ import type { Job, JobStatus } from '../../lib/types'
 import { activeFilterCount, useBoardFilters } from './boardFilters'
 import { byDueThenPriority, isOpen, isOverdue } from './grouping'
 import { JobRow } from './JobRow'
+import { useRovingList } from './useRovingList'
 import { personName, useAllJobs, useLookups } from './useJobData'
 
 const STATUS_OPTIONS: Array<{ value: string; label: string }> = [
@@ -25,6 +26,7 @@ export function BoardPage() {
   const jobs = useAllJobs()
   const { clients, profiles, clientById, profileById } = useLookups()
   const f = useBoardFilters()
+  const { listProps } = useRovingList()
   const today = new Date()
 
   const filtered = jobs
@@ -130,10 +132,15 @@ export function BoardPage() {
           detail={active > 0 ? 'Clear a filter or two and try again.' : undefined}
         />
       ) : f.view === 'list' ? (
-        <ul className="grid gap-1.5">
-          {filtered.map((job) => (
+        <ul
+          {...listProps}
+          aria-label="Jobs. Use the up and down arrows to move between rows."
+          className="grid gap-1.5"
+        >
+          {filtered.map((job, index) => (
             <JobRow
               key={job.id}
+              index={index}
               job={job}
               client={clientById.get(job.client_id)}
               today={today}

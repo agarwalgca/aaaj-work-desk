@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router'
 import { LoginPage } from '../features/auth/LoginPage'
 import { ResetPasswordPage } from '../features/auth/ResetPasswordPage'
+import { UpdatePrompt } from '../features/pwa/UpdatePrompt'
 import { ClientDetailPage } from '../features/clients/ClientDetailPage'
 import { ClientsPage } from '../features/clients/ClientsPage'
 import { BoardPage } from '../features/jobs/BoardPage'
@@ -56,6 +57,9 @@ export function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+        {/* Outside the auth gate on purpose: the worker that makes a cold launch
+            work offline has to be registered before anyone signs in, not after. */}
+        <UpdatePrompt />
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           {/* Public: the visitor arrives holding only a recovery session. */}

@@ -1,16 +1,20 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { useEffect, useState } from 'react'
+import { useSyncExternalStore } from 'react'
 import { useMe } from '../../app/useMe'
 import { useAuth } from '../../app/authContext'
 import { Button } from '../../components/Button'
 import { PageHeader } from '../../components/PageHeader'
 import { cacheStats, clearLocalData, db } from '../../lib/db'
 import { formatDateTime } from '../../lib/dates'
+import {
+  getInstallPrompt,
+  isInstalled,
+  promptInstall,
+  subscribeToInstallPrompt,
+} from '../../lib/installPrompt'
 import { syncNow, stopSync } from '../../lib/sync/engine'
 import { retryFailed } from '../../lib/sync/flush'
 import { useSyncState } from '../../lib/sync/state'
-
-type InstallPrompt = Event & { prompt: () => Promise<void> }
 
 export function SettingsPage() {
   const me = useMe()
@@ -18,18 +22,11 @@ export function SettingsPage() {
   const { phase, online, lastSyncedAt, lastError } = useSyncState()
   const stats = useLiveQuery(() => cacheStats(), [])
   const queue = useLiveQuery(() => db.outbox.toArray(), [], [])
-  const [installPrompt, setInstallPrompt] = useState<InstallPrompt | null>(null)
-
-  // Chrome fires this instead of showing its own install bar. Held so the person
-  // can install when they decide to, not when the browser decides to ask.
-  useEffect(() => {
-    const onPrompt = (event: Event) => {
-      event.preventDefault()
-      setInstallPrompt(event as InstallPrompt)
-    }
-    window.addEventListener('beforeinstallprompt', onPrompt)
-    return () => window.removeEventListener('beforeinstallprompt', onPrompt)
-  }, [])
+  const installable = useSyncExternalStore(
+    subscribeToInstallPrompt,
+    () => getInstallPrompt() !== null,
+    () => false,
+  )
 
   const pending = queue.filter((e) => e.state === 'pending')
   const failed = queue.filter((e) => e.state === 'failed')
@@ -63,19 +60,23 @@ export function SettingsPage() {
       </Panel>
 
       <Panel title="Install on this device">
-        {installPrompt ? (
+        {isInstalled() ? (
+          <p className="text-ink-soft text-sm">
+            Already installed. This is the installed app.
+          </p>
+        ) : installable ? (
           <>
             <p className="text-ink-soft text-sm">
-              Installing gives the app its own icon and keeps it working with no connection.
+              Installing gives Work Desk its own icon and keeps it opening with no connection.
             </p>
-            <Button className="mt-2" onClick={() => void installPrompt.prompt()}>
+            <Button className="mt-2" onClick={() => void promptInstall()}>
               Install
             </Button>
           </>
         ) : (
           <p className="text-ink-soft text-sm">
-            Either it is already installed, or this browser wants you to do it from its own menu — on
-            iPhone, Share then <strong>Add to Home Screen</strong>.
+            This browser wants you to install from its own menu — on iPhone, Share then{' '}
+            <strong>Add to Home Screen</strong>; in Chrome, the icon at the right of the address bar.
           </p>
         )}
       </Panel>

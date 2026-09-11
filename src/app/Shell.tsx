@@ -2,6 +2,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { useEffect, useState } from 'react'
 import { Link, NavLink, Outlet } from 'react-router'
 import { GlobalSearch } from '../features/search/GlobalSearch'
+import { StaleWritesBanner } from '../features/sync/StaleWritesBanner'
 import { SyncChip } from '../features/sync/SyncChip'
 import { Wordmark } from '../components/Wordmark'
 import {
@@ -141,6 +142,7 @@ export function Shell() {
         </nav>
 
         <main className="min-w-0 flex-1 p-4 pb-20 md:p-6 md:pb-6">
+          <StaleWritesBanner />
           <Outlet />
         </main>
       </div>
