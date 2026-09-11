@@ -79,12 +79,12 @@ export function Shell() {
           type="button"
           onClick={() => setSearchOpen(true)}
           aria-label="Search"
-          className="rounded-control ml-auto border border-white/15 px-2 py-1 font-mono text-[11px] text-white/60 md:hidden"
+          className="rounded-control ml-auto shrink-0 border border-white/15 px-2 py-1 font-mono text-[11px] text-white/60 md:hidden"
         >
           Search
         </button>
 
-        <div className="md:ml-0">
+        <div className="min-w-0 shrink md:ml-0">
           <SyncChip />
         </div>
 

@@ -21,14 +21,17 @@ export function Wordmark({ size = 'sm' }: { size?: 'sm' | 'lg' }) {
     )
   }
 
+  // Below 640px only the monogram survives: the header also has to hold a search
+  // control, the sync chip and the avatar, and on a 375px screen the words are the
+  // one part nobody needs in order to know where they are.
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex shrink-0 items-center gap-3">
       <Monogram size={40} />
-      <div className="leading-tight">
+      <div className="hidden leading-tight sm:block">
         <div className="font-serif text-base font-semibold whitespace-nowrap text-white">
           AAAJ Work Desk
         </div>
-        <div className="hidden text-[11px] tracking-[0.12em] whitespace-nowrap text-white/55 uppercase sm:block">
+        <div className="hidden text-[11px] tracking-[0.12em] whitespace-nowrap text-white/55 uppercase md:block">
           A A A J &amp; Associates
         </div>
       </div>

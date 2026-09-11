@@ -45,7 +45,7 @@ export function AvatarMenu({
   const initials = me?.initials || me?.username.slice(0, 2).toUpperCase() || '··'
 
   return (
-    <div ref={box} className="relative">
+    <div ref={box} className="relative shrink-0">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}

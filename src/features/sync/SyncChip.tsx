@@ -47,7 +47,7 @@ export function SyncChip() {
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className={`rounded-control border px-2 py-1 font-mono text-[11px] whitespace-nowrap hover:bg-white/10 ${tone}`}
+        className={`rounded-control max-w-full truncate border px-2 py-1 font-mono text-[11px] whitespace-nowrap hover:bg-white/10 ${tone}`}
       >
         {label}
       </button>
