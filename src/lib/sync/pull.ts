@@ -6,6 +6,18 @@ import { cacheWindowStartISO, isInCacheWindow } from './window'
 
 const PAGE = 500
 
+/** PostgREST's code for "no such table in the schema cache". */
+const MISSING_TABLE = 'PGRST205'
+
+class MissingTable extends Error {
+  table: SyncedTable
+
+  constructor(table: SyncedTable) {
+    super(`${table} is not on the server yet`)
+    this.table = table
+  }
+}
+
 /** The columns the pull itself reasons about; the rest travels through untouched. */
 type SyncRow = { id: string; updated_at: string; deleted_at: string | null }
 
@@ -44,6 +56,12 @@ async function pullTable(table: SyncedTable, now: Date): Promise<number> {
     }
 
     const { data, error } = await query
+    // A table the database has not got yet. This happens whenever a deploy lands
+    // before its migration is run, and it must not take the other five tables
+    // down with it — every screen reads from Dexie, so a partial sync is worth
+    // far more than none. It heals itself the moment the migration is applied.
+    if (error?.code === MISSING_TABLE) throw new MissingTable(table)
+
     // PostgrestError is a plain object, not an Error. Thrown as-is it reaches the
     // sync panel as "[object Object]", which tells nobody anything.
     if (error) throw new Error(`${table}: ${error.message}`)
@@ -100,9 +118,15 @@ async function reconcile(now: Date) {
     supabase.from('job_templates').select('id').is('deleted_at', null),
   ])
 
-  for (const result of [jobIds, clientIds, profileIds, templateIds]) {
+  for (const result of [jobIds, clientIds, profileIds]) {
     if (result.error) throw new Error(`reconcile: ${result.error.message}`)
   }
+  // Same reasoning as the pull: a table that is not there yet is skipped, not
+  // fatal. Sweeping it would delete every local row for want of a server answer.
+  if (templateIds.error && templateIds.error.code !== MISSING_TABLE) {
+    throw new Error(`reconcile: ${templateIds.error.message}`)
+  }
+  const sweepTemplates = !templateIds.error
 
   const visibleJobs = new Set((jobIds.data ?? []).map((r) => r.id))
   const visibleClients = new Set((clientIds.data ?? []).map((r) => r.id))
@@ -135,20 +159,32 @@ async function reconcile(now: Date) {
 
       // A manager demoted to staff stops seeing templates entirely, and the rows
       // have to leave with the permission.
-      const staleTemplates = (await db.job_templates.toArray())
-        .filter((t) => !visibleTemplates.has(t.id))
-        .map((t) => t.id)
-      if (staleTemplates.length) await db.job_templates.bulkDelete(staleTemplates)
+      if (sweepTemplates) {
+        const staleTemplates = (await db.job_templates.toArray())
+          .filter((t) => !visibleTemplates.has(t.id))
+          .map((t) => t.id)
+        if (staleTemplates.length) await db.job_templates.bulkDelete(staleTemplates)
+      }
     },
   )
 }
 
+export type PullResult = { pulled: number; missing: SyncedTable[] }
+
 /** Everything, in dependency order, then the reconcile sweep. */
-export async function pullAll(now = new Date()): Promise<number> {
-  let total = 0
+export async function pullAll(now = new Date()): Promise<PullResult> {
+  let pulled = 0
+  const missing: SyncedTable[] = []
+
   for (const table of SYNCED_TABLES) {
-    total += await pullTable(table, now)
+    try {
+      pulled += await pullTable(table, now)
+    } catch (cause) {
+      if (cause instanceof MissingTable) missing.push(cause.table)
+      else throw cause
+    }
   }
+
   await reconcile(now)
-  return total
+  return { pulled, missing }
 }

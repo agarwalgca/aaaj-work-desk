@@ -19,7 +19,7 @@ import { useSyncState } from '../../lib/sync/state'
 export function SettingsPage() {
   const me = useMe()
   const { session, signOut } = useAuth()
-  const { phase, online, lastSyncedAt, lastError } = useSyncState()
+  const { phase, online, lastSyncedAt, lastError, missingTables } = useSyncState()
   const stats = useLiveQuery(() => cacheStats(), [])
   const queue = useLiveQuery(() => db.outbox.toArray(), [], [])
   const installable = useSyncExternalStore(
@@ -91,6 +91,14 @@ export function SettingsPage() {
         {lastError && (
           <p className="rounded-control border-status-cancelled/30 text-status-cancelled mt-2 border px-2 py-1 text-xs">
             {lastError}
+          </p>
+        )}
+
+        {missingTables.length > 0 && (
+          <p className="rounded-control border-status-on-hold/40 text-status-on-hold mt-2 border px-2 py-1 text-xs">
+            These tables are not on the server yet: <strong>{missingTables.join(', ')}</strong>.
+            Everything else is syncing normally. Apply the outstanding migration in
+            supabase/migrations and this clears itself.
           </p>
         )}
 

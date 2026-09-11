@@ -9,6 +9,8 @@ type SyncState = {
   online: boolean
   lastSyncedAt: string | null
   lastError: string | null
+  /** Synced tables the database has not got yet — a migration is outstanding. */
+  missingTables: string[]
   set: (patch: Partial<Omit<SyncState, 'set'>>) => void
 }
 
@@ -17,5 +19,6 @@ export const useSyncState = create<SyncState>((set) => ({
   online: typeof navigator === 'undefined' ? true : navigator.onLine,
   lastSyncedAt: null,
   lastError: null,
+  missingTables: [],
   set: (patch) => set(patch),
 }))

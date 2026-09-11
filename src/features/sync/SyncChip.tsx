@@ -12,7 +12,7 @@ import { useSyncState } from '../../lib/sync/state'
  */
 export function SyncChip() {
   const [open, setOpen] = useState(false)
-  const { phase, online, lastSyncedAt, lastError } = useSyncState()
+  const { phase, online, lastSyncedAt, lastError, missingTables } = useSyncState()
 
   const queue = useLiveQuery(() => db.outbox.toArray(), [], [])
   const pending = queue.filter((e) => e.state === 'pending')
@@ -75,6 +75,13 @@ export function SyncChip() {
           {lastError && (
             <p className="rounded-control border-status-cancelled/30 text-status-cancelled mt-2 border px-2 py-1 text-xs">
               {lastError}
+            </p>
+          )}
+
+          {missingTables.length > 0 && (
+            <p className="rounded-control border-status-on-hold/40 text-status-on-hold mt-2 border px-2 py-1 text-xs">
+              Not on the server yet: {missingTables.join(', ')}. Everything else is syncing
+              normally — a database migration is outstanding.
             </p>
           )}
 
