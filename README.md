@@ -54,7 +54,11 @@ Run these once, in the Supabase SQL editor, in order:
 2. `supabase/migrations/0002_job_templates.sql` — recurring job templates, plus the
    two columns on `jobs` recording which template and period a job came from.
    Re-runnable.
-3. `supabase/seed.sql` — three fictional clients, six people and twenty-five jobs.
+3. `supabase/migrations/0003_generate_recurring.sql` — the financial-year period
+   functions and the monthly schedule that creates recurring jobs. **Enable
+   `pg_cron` first** (Database → Extensions), or the file applies without
+   scheduling anything and says so. Re-runnable.
+4. `supabase/seed.sql` — three fictional clients, six people and twenty-five jobs.
    Development data. It expects the partner account (`gaurav@aaaj.co.in`) to exist
    already and will stop with a clear message if it does not.
 
@@ -84,11 +88,24 @@ Frequencies are monthly, quarterly, half-yearly and annual, and all of them are
 financial-year shaped: Q1 is Apr–Jun, H2 ends on 31 March, and a period reads
 `Aug-2026`, `Q2 FY 2026-27` or `FY 2025-26`.
 
-Templates generate nothing by themselves. There is no server here to wake up on
-the first of the month, so a manager opens **Recurring**, presses Generate, picks
-a period, and sees exactly which jobs are about to be created before any of them
-are. Anything already generated for that period is listed as such and skipped, so
-pressing Generate twice for August cannot produce two sets of August returns.
+Jobs appear by themselves at 00:20 UTC on the 1st of each month — just before
+06:00 in India, so the work is waiting before anybody opens the app. That is
+`pg_cron` running `generate_recurring_jobs()` inside Postgres, not a server.
+
+The period generated is the one that has just **ended**: 1 October produces
+September's GST return, and 1 April produces the audit for the financial year
+just closed. That is also what lets a single monthly schedule serve every
+frequency — on 1 August a quarterly template's quarter has not finished, so
+nothing is created; on 1 October it has.
+
+A manager can still open **Recurring** and press Generate to catch up a missed
+period or create one early. Either way, anything already generated is listed as
+such and skipped, so August cannot end up with two sets of returns.
+
+The financial-year arithmetic exists twice: in `periods.ts` for the app and in
+`period_for()` for the schedule. `npm run verify:sql` compares the two across 212
+date-and-frequency combinations, because two implementations of one rule is
+exactly the kind of thing that drifts quietly.
 
 The due date is not derived. Statutory dates move, and an app that quietly asserts
 a wrong one is worse than one that asks — a manager sets a date for the batch, or

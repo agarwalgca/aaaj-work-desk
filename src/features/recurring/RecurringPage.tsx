@@ -17,8 +17,8 @@ import { FREQUENCIES, FREQUENCY_LABEL } from './periods'
 
 /**
  * Standing arrangements: this client has this job every month, and this person
- * does it. Nothing here creates work on its own — Generate does, and a manager
- * presses it.
+ * does it. Postgres creates the jobs on the 1st; Generate is here for catching up
+ * a period that was missed, or starting one early.
  */
 export function RecurringPage() {
   const me = useMe()
@@ -43,6 +43,13 @@ export function RecurringPage() {
         </Button>
         <Button onClick={() => setEditing('new')}>Add recurring job</Button>
       </PageHeader>
+
+      <p className="rounded-card border-rule bg-brass-wash text-ink-soft mb-4 border px-3 py-2 text-sm">
+        These are created automatically at the start of each month, for the period
+        that has just finished — October the 1st produces September&rsquo;s returns. Use{' '}
+        <strong>Generate jobs</strong> to catch up a period that was missed, or to
+        create one early.
+      </p>
 
       {generating && me && (
         <GeneratePanel templates={active} actorId={me.id} onDone={() => setGenerating(false)} />

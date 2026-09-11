@@ -66,6 +66,10 @@ export function GeneratePanel({
   return (
     <div className="rounded-card border-rule bg-card mb-6 border p-4">
       <h2 className="font-serif text-base font-semibold">Generate jobs</h2>
+      <p className="text-ink-soft mt-1 text-xs">
+        The 1st of the month does this on its own. This is for catching up, or for
+        creating a period before it ends.
+      </p>
 
       <div className="mt-3 grid gap-3 sm:grid-cols-3">
         <label className="flex flex-col gap-1">

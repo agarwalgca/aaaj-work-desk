@@ -13,6 +13,9 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { PGlite } from '@electric-sql/pglite'
 import { pgcrypto } from '@electric-sql/pglite/contrib/pgcrypto'
+// The TypeScript the client uses, imported directly so the two implementations of
+// the financial-year rule can be compared rather than eyeballed.
+import { periodContaining } from '../src/features/recurring/periods.ts'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const sql = (p) => readFileSync(resolve(root, p), 'utf8')
@@ -141,6 +144,7 @@ console.log('\n— migration —')
 for (const file of [
   'supabase/migrations/0001_init.sql',
   'supabase/migrations/0002_job_templates.sql',
+  'supabase/migrations/0003_generate_recurring.sql',
 ]) {
   const name = file.split('/').pop()
   try {
@@ -478,6 +482,106 @@ console.log('\n— recurring templates —')
     [own],
     'trigger',
   )
+}
+
+console.log('\n— period arithmetic: SQL against TypeScript —')
+{
+  const frequencies = ['monthly', 'quarterly', 'half_yearly', 'annual']
+  // Every month across two financial years, plus the days either side of 1 April
+  // and 1 October where the year and the half turn over.
+  const dates = []
+  for (let y = 2026; y <= 2027; y += 1) {
+    for (let m = 1; m <= 12; m += 1) {
+      dates.push(`${y}-${String(m).padStart(2, '0')}-01`)
+      dates.push(`${y}-${String(m).padStart(2, '0')}-15`)
+    }
+  }
+  dates.push('2026-03-31', '2026-04-01', '2026-09-30', '2026-10-01', '2028-02-29')
+
+  const ymd = (d) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
+  const mismatches = []
+  for (const date of dates) {
+    for (const freq of frequencies) {
+      const row = (
+        await db.query(`select * from public.period_for($1::date, $2::public.recurrence_frequency)`, [
+          date,
+          freq,
+        ])
+      ).rows[0]
+      const ts = periodContaining(new Date(`${date}T12:00:00`), freq)
+
+      if (
+        row.period_key !== ts.key ||
+        row.period_label !== ts.label ||
+        ymd(new Date(row.starts_on)) !== ymd(ts.start) ||
+        ymd(new Date(row.ends_on)) !== ymd(ts.end)
+      ) {
+        mismatches.push(
+          `${date} ${freq}: sql ${row.period_key}/${row.period_label}` +
+            `/${ymd(new Date(row.starts_on))}..${ymd(new Date(row.ends_on))}` +
+            ` vs ts ${ts.key}/${ts.label}/${ymd(ts.start)}..${ymd(ts.end)}`,
+        )
+      }
+    }
+  }
+
+  report(
+    `SQL and TypeScript agree on all ${dates.length * frequencies.length} period lookups`,
+    mismatches.length === 0,
+    mismatches.slice(0, 3).join('\n        '),
+  )
+}
+
+console.log('\n— the scheduled generator —')
+{
+  await db.query(`delete from public.jobs where template_id is not null`)
+  await db.query(`delete from public.job_templates`)
+
+  const client = (await db.query(`select id from public.clients limit 1`)).rows[0].id
+  const mk = (title, freq) =>
+    db.query(
+      `insert into public.job_templates (client_id, title, category, frequency)
+       values ($1, $2, 'gst_return', $3)`,
+      [client, title, freq],
+    )
+
+  await mk('GSTR-3B and GSTR-1 filing', 'monthly')
+  await mk('TDS return 26Q', 'quarterly')
+  await mk('Statutory audit', 'annual')
+
+  const run = async (onDate) =>
+    (await db.query(`select public.generate_recurring_jobs($1::date) as n`, [onDate])).rows[0].n
+  const labels = async () =>
+    (
+      await db.query(
+        `select period_label from public.jobs where template_id is not null order by period_label`,
+      )
+    ).rows.map((r) => r.period_label)
+
+  // 1 August: only the month just ended has finished. The quarter is still running.
+  const aug = await run('2026-08-01')
+  report('1 Aug generates July only', aug === 1, `${aug} created — ${(await labels()).join(', ')}`)
+
+  // 1 October: the month and the quarter have both ended.
+  const oct = await run('2026-10-01')
+  report('1 Oct generates September and Q2', oct === 2, `${oct} created — ${(await labels()).join(', ')}`)
+
+  report('running the same day again creates nothing', (await run('2026-10-01')) === 0)
+
+  // 1 April: the financial year has ended, so the audit appears.
+  await run('2027-04-01')
+  report(
+    '1 Apr generates the financial year just ended',
+    (await labels()).includes('FY 2026-27'),
+    (await labels()).join(', '),
+  )
+
+  const dated = await db.query(
+    `select count(*)::int as n from public.jobs where template_id is not null and due_date is not null`,
+  )
+  report('generated jobs carry no invented due date', dated.rows[0].n === 0)
 }
 
 console.log('\n— new account —')
