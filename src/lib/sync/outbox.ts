@@ -1,5 +1,5 @@
 import { db } from '../db'
-import type { Job, JobStatus, OutboxEntry, SyncedTable } from '../types'
+import type { Client, Job, JobStatus, OutboxEntry, Profile, SyncedTable } from '../types'
 
 /**
  * Every mutation writes to Dexie first and appends an outbox entry in the same
@@ -163,4 +163,43 @@ export async function isRowPending(rowId: string) {
 export async function oldestPendingAt(): Promise<string | null> {
   const oldest = await db.outbox.where('state').equals('pending').first()
   return oldest?.queued_at ?? null
+}
+
+// ---------------------------------------------------------------------------
+// Clients and people. Same pattern: local first, queue second. Whether the caller
+// is actually allowed to do any of this is Postgres's decision, not this file's —
+// a refusal comes back through the outbox as a failed entry.
+// ---------------------------------------------------------------------------
+
+export async function createClient(
+  input: Pick<Client, 'name' | 'code' | 'gstin' | 'pan' | 'is_active'>,
+): Promise<string> {
+  const id = newId()
+  const at = now()
+  const row: Client = { ...input, id, created_at: at, updated_at: at, deleted_at: null }
+
+  await db.transaction('rw', [db.clients, db.outbox], async () => {
+    await db.clients.put(row)
+    await enqueue('clients', 'insert', id, { ...scrub(row), id })
+  })
+
+  return id
+}
+
+export async function updateClient(id: string, patch: Partial<Client>) {
+  await db.transaction('rw', [db.clients, db.outbox], async () => {
+    const existing = await db.clients.get(id)
+    if (!existing) throw new Error(`No local copy of client ${id}`)
+    await db.clients.put({ ...existing, ...patch, updated_at: now() })
+    await enqueue('clients', 'update', id, scrub(patch))
+  })
+}
+
+export async function updateProfile(id: string, patch: Partial<Profile>) {
+  await db.transaction('rw', [db.profiles, db.outbox], async () => {
+    const existing = await db.profiles.get(id)
+    if (!existing) throw new Error(`No local copy of profile ${id}`)
+    await db.profiles.put({ ...existing, ...patch, updated_at: now() })
+    await enqueue('profiles', 'update', id, scrub(patch))
+  })
 }

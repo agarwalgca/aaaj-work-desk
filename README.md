@@ -80,6 +80,22 @@ old, plus closed jobs finished inside the current or previous Indian financial
 year. The boundary is computed at pull time, so on 1 April the window moves by
 itself.
 
+## Who sees what
+
+| Screen      | Partner | Manager | Staff |
+| ----------- | ------- | ------- | ----- |
+| My Work     | ✓       | ✓       | ✓     |
+| Board       | ✓       | ✓       | —     |
+| New / edit job | ✓    | ✓       | —     |
+| Job detail  | ✓       | ✓       | own jobs only |
+| Reassign    | ✓       | ✓       | —     |
+| Clients     | ✓ edit  | ✓ edit  | read  |
+| Team        | ✓       | —       | —     |
+
+The nav and the controls follow this table, but it is courtesy rather than
+security: every one of these rules is enforced again in Postgres, and the client
+copy exists only so nobody is shown a door that will not open.
+
 ## Conventions
 
 See [CLAUDE.md](./CLAUDE.md) — file layout, naming, design tokens, and the
@@ -90,5 +106,6 @@ checklist for adding a table across Postgres, Dexie and the outbox.
 - [x] **1 — Foundation.** Scaffold, tokens, fonts, logo and icons, Supabase
       wiring, app shell, login screen.
 - [ ] 2 — Data layer: migrations, seed, RLS, Dexie, outbox, pull, pruner, flusher.
-- [ ] 3 — Features: My Work, Board, job detail, job form, Clients, Team, Settings.
+- [x] **3 — Features.** My Work, Board, job detail, job form, Clients, Team,
+      Settings, global search, role gating.
 - [ ] 4 — PWA and hardening.

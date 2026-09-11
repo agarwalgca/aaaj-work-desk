@@ -123,6 +123,16 @@ export type OutboxEntry = {
 }
 
 /**
+ * An unsent piece of writing, kept on this device only. Never synced: a half-typed
+ * comment is nobody else's business until it is posted.
+ */
+export type Draft = {
+  key: string
+  body: string
+  updated_at: string
+}
+
+/**
  * One row per synced table, holding where its incremental pull got to. The id is
  * part of the cursor, not decoration: a bulk insert gives every row the same
  * `now()`, so a timestamp alone cannot say where a page ended.

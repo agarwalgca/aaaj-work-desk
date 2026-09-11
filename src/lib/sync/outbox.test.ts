@@ -103,6 +103,16 @@ describe('deciding whether to retry', () => {
     expect(isPermanent(null)).toBe(false)
   })
 
+  it('retries an expired token rather than binning the queue behind it', () => {
+    // What every device sees for a second or two around a token refresh.
+    expect(isPermanent({ code: 'PGRST301', message: 'Expected 3 parts in JWT; got 1' })).toBe(false)
+    expect(isPermanent({ code: 'PGRST000', message: 'could not connect to the database' })).toBe(false)
+  })
+
+  it('still gives up on a request PostgREST will always refuse', () => {
+    expect(isPermanent({ code: 'PGRST204', message: "column 'nonsense' does not exist" })).toBe(true)
+  })
+
   it('backs off by doubling, and stops doubling at five minutes', () => {
     expect(backoffMs(1)).toBe(2_000)
     expect(backoffMs(4)).toBe(16_000)

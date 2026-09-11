@@ -2,6 +2,7 @@ import Dexie, { type EntityTable } from 'dexie'
 import type {
   Client,
   Cursor,
+  Draft,
   Job,
   JobComment,
   JobStatusHistory,
@@ -23,6 +24,7 @@ class WorkDeskDB extends Dexie {
   job_comments!: EntityTable<JobComment, 'id'>
   outbox!: EntityTable<OutboxEntry, 'seq'>
   cursors!: EntityTable<Cursor, 'table_name'>
+  drafts!: EntityTable<Draft, 'key'>
 
   constructor() {
     super('aaaj-work-desk')
@@ -36,6 +38,9 @@ class WorkDeskDB extends Dexie {
       outbox: '++seq, id, state, table_name, row_id, next_attempt_at',
       cursors: 'table_name',
     })
+
+    // Free-text that has been typed but not sent. Local only, never pushed.
+    this.version(2).stores({ drafts: 'key, updated_at' })
   }
 }
 
@@ -48,7 +53,16 @@ export const db = new WorkDeskDB()
 export async function clearLocalData() {
   await db.transaction(
     'rw',
-    [db.profiles, db.clients, db.jobs, db.job_status_history, db.job_comments, db.outbox, db.cursors],
+    [
+      db.profiles,
+      db.clients,
+      db.jobs,
+      db.job_status_history,
+      db.job_comments,
+      db.outbox,
+      db.cursors,
+      db.drafts,
+    ],
     async () => {
       await Promise.all([
         db.profiles.clear(),
@@ -58,6 +72,7 @@ export async function clearLocalData() {
         db.job_comments.clear(),
         db.outbox.clear(),
         db.cursors.clear(),
+        db.drafts.clear(),
       ])
     },
   )

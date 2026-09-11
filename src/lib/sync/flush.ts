@@ -10,6 +10,17 @@ export function backoffMs(attempts: number) {
 }
 
 /**
+ * PostgREST codes that describe a moment, not a mistake.
+ *
+ * PGRST301 is an expired or malformed JWT — which is what every device sees for
+ * the second or two around a token refresh. Treating it as permanent would take a
+ * queue of perfectly good writes and bin them because the access token aged out
+ * while the phone was in somebody's pocket. PGRST000 and PGRST001 are the database
+ * being unreachable, which is likewise a thing that stops being true.
+ */
+const RECOVERABLE = new Set(['PGRST301', 'PGRST000', 'PGRST001', 'PGRST002'])
+
+/**
  * Is this refusal worth retrying?
  *
  * A dropped connection is. An RLS rejection, a constraint violation, or a job that
@@ -20,6 +31,8 @@ export function backoffMs(attempts: number) {
 export function isPermanent(error: { code?: string; message?: string } | null): boolean {
   if (!error) return false
   const code = error.code ?? ''
+  if (RECOVERABLE.has(code)) return false
+
   // 42501 insufficient privilege, 23xxx integrity violation, 22xxx bad data,
   // P0001 a raise from one of our own triggers, PGRST* a request PostgREST refused.
   return (

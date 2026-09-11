@@ -33,6 +33,17 @@ stop and say so rather than building it.
   six; an icon package is more bytes and more indirection than that earns.
 - **`npx tsc --noEmit` is a no-op here** because `tsconfig.json` is a solution file.
   Use `npm run typecheck` (`tsc -b --force`).
+- **Role gating in the client is presentation only.** `RequireRole` and the nav
+  filter hide screens; Postgres refuses the same people regardless. A `useMe()` of
+  `undefined` means the profile has not synced yet and must be waited for, not
+  treated as least privilege, or a partner watches their own Board flicker away on
+  every cold start.
+- **Forms take their initial values as props, keyed by row id**, rather than
+  copying a loaded row into state inside an effect. The effect version renders
+  twice on every open and races anyone who starts typing before Dexie answers.
+- **Class names for status colours are written out in full** in
+  `src/components/statusStyles.ts`. Tailwind reads source text, so
+  `border-status-${status}` is a class that never gets generated.
 - **A reconcile sweep, not just a cursor.** An incremental pull can only add and
   update; it cannot say that a row has *left* a device's view, which is what
   happens every time a manager reassigns a job away from someone. After each pull,
