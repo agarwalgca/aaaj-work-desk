@@ -9,15 +9,17 @@ import { Select } from '../../components/Select'
 import { Textarea } from '../../components/Textarea'
 import { TextField } from '../../components/TextField'
 import { CATEGORY_OPTIONS } from '../../lib/labels'
-import { createJob, updateJob } from '../../lib/sync/outbox'
-import type { JobCategory, JobPriority } from '../../lib/types'
+import { createJob, createJobTemplate, updateJob } from '../../lib/sync/outbox'
+import type { Frequency, JobCategory, JobPriority } from '../../lib/types'
 import { PeriodField } from './PeriodField'
 import {
   currentPeriodLabel,
   defaultPeriodType,
   detectPeriodType,
+  periodForLabel,
   type PeriodType,
 } from './periodTypes'
+import { FREQUENCY_LABEL } from '../recurring/periods'
 import { personName, useJob, useLookups } from './useJobData'
 
 type Form = {
@@ -116,6 +118,19 @@ function JobForm({ jobId, initial }: { jobId: string | undefined; initial: Form 
   )
   const touchedPeriod = useRef(false)
 
+  // Turning this on creates a standing arrangement as well as the job. It is a
+  // different kind of thing from a one-off, so it is opt-in, off by default, and
+  // says plainly what it will do before it does it.
+  const [repeats, setRepeats] = useState(false)
+
+  // A job that repeats monthly has to be labelled with a month — the template and
+  // the scheduler both reason in whole periods, so free text cannot be linked.
+  const repeatable = periodType !== 'custom'
+  // Switching to free text after ticking the box would otherwise leave a standing
+  // arrangement queued up that cannot be linked to any period.
+  if (repeats && !repeatable) setRepeats(false)
+  const frequency: Frequency = repeatable ? (periodType as Frequency) : 'monthly'
+
   const activeClients = clients.filter((c) => c.is_active)
   const people = profiles.filter((p) => p.is_active)
   const set = (patch: Partial<Form>) => setForm((f) => ({ ...f, ...patch }))
@@ -143,7 +158,33 @@ function JobForm({ jobId, initial }: { jobId: string | undefined; initial: Form 
       return
     }
 
-    const created = await createJob({ ...shape, assigned_by: me.id, status: 'not_started' })
+    // The standing arrangement first, so the job can point at it. Linking the two
+    // is what stops the 1st of the month producing this same period a second time.
+    let templateId: string | undefined
+    let periodKey: string | undefined
+    if (repeats && repeatable) {
+      templateId = await createJobTemplate({
+        client_id: shape.client_id,
+        title: shape.title,
+        description: shape.description,
+        category: shape.category,
+        frequency,
+        assigned_to: shape.assigned_to,
+        reviewer_id: shape.reviewer_id,
+        priority: shape.priority,
+        is_active: true,
+        due_day: null,
+        due_months_after: 1,
+      })
+      periodKey = periodForLabel(shape.period_label, frequency)?.key
+    }
+
+    const created = await createJob({
+      ...shape,
+      assigned_by: me.id,
+      status: 'not_started',
+      ...(templateId && periodKey ? { template_id: templateId, period_key: periodKey } : {}),
+    })
     setBusy(false)
 
     if (andAnother) {
@@ -253,6 +294,36 @@ function JobForm({ jobId, initial }: { jobId: string | undefined; initial: Form 
           ]}
         />
         <div />
+
+        <div className="border-rule sm:col-span-2 sm:border-t sm:pt-4">
+          <label className="flex items-start gap-2.5">
+            <input
+              type="checkbox"
+              checked={repeats}
+              disabled={editing || !repeatable}
+              onChange={(e) => setRepeats(e.target.checked)}
+              className="accent-brass mt-0.5 size-4 shrink-0"
+            />
+            <span className="text-sm">
+              <span className="font-medium">This one comes round again</span>
+              <span className="text-ink-soft block text-xs">
+                {editing ? (
+                  'Set up on the Recurring screen — a job being edited is one instance, not the arrangement behind it.'
+                ) : !repeatable ? (
+                  'Pick a month, quarter or financial year above first. Something that repeats has to be labelled with a whole period.'
+                ) : repeats ? (
+                  <>
+                    A <strong>{FREQUENCY_LABEL[frequency].toLowerCase()}</strong> entry will be added
+                    to Recurring as well, and later periods appear on their own on the 1st. This job
+                    covers {form.period_label}.
+                  </>
+                ) : (
+                  `Also add it to Recurring, ${FREQUENCY_LABEL[frequency].toLowerCase()}, so future periods create themselves.`
+                )}
+              </span>
+            </span>
+          </label>
+        </div>
 
         <div className="sm:col-span-2">
           <Textarea

@@ -58,6 +58,17 @@ export function detectPeriodType(label: string, on = new Date()): PeriodType {
   return 'custom'
 }
 
+/**
+ * The period behind a label, so a job created from the form can be linked to the
+ * template that will go on producing them. Without the key the scheduler has no
+ * way to know this period is already done and would create it again on the 1st.
+ */
+export function periodForLabel(label: string, frequency: Frequency, on = new Date()) {
+  return recentPeriods(on, frequency, PERIODS_OFFERED[frequency] + 6).find(
+    (period) => period.label === label,
+  )
+}
+
 /** "Month", "Quarter", "Half-year", "Financial year" — how a person says it. */
 export const PERIOD_TYPE_LABEL: Record<PeriodType, string> = {
   monthly: 'Month',

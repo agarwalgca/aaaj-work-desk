@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { currentPeriodLabel, defaultPeriodType, detectPeriodType } from './periodTypes'
+import {
+  currentPeriodLabel,
+  defaultPeriodType,
+  detectPeriodType,
+  periodForLabel,
+} from './periodTypes'
 
 const on = new Date(2026, 8, 12) // 12 Sep 2026
 
@@ -48,5 +53,20 @@ describe('detectPeriodType', () => {
     expect(detectPeriodType('August 2026', on)).toBe('custom')
     expect(detectPeriodType('FY 2025-2026', on)).toBe('custom')
     expect(detectPeriodType('', on)).toBe('custom')
+  })
+})
+
+describe('periodForLabel', () => {
+  it('recovers the key a job needs to be linked to its template', () => {
+    expect(periodForLabel('Sep-2026', 'monthly', on)?.key).toBe('M-2026-09')
+    expect(periodForLabel('Q1 FY 2026-27', 'quarterly', on)?.key).toBe('Q-2026-1')
+    expect(periodForLabel('FY 2025-26', 'annual', on)?.key).toBe('A-2025')
+  })
+
+  it('returns nothing for a label that shape never produced', () => {
+    // Without this the job would be linked to a period the scheduler does not
+    // recognise, and the 1st would create it all over again.
+    expect(periodForLabel('August 2026', 'monthly', on)).toBeUndefined()
+    expect(periodForLabel('Sep-2026', 'annual', on)).toBeUndefined()
   })
 })
