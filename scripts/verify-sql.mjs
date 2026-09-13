@@ -147,6 +147,7 @@ for (const file of [
   'supabase/migrations/0003_generate_recurring.sql',
   'supabase/migrations/0004_due_date_rules.sql',
   'supabase/migrations/0005_schedule_status.sql',
+  'supabase/migrations/0006_categories_employees_approval.sql',
 ]) {
   const name = file.split('/').pop()
   try {
@@ -661,6 +662,178 @@ console.log('\n— schedule visibility —')
   // than blow up on a missing cron schema.
   const rows = (await db.query(`select * from public.recurring_schedule()`)).rows
   report('recurring_schedule() answers on a database without pg_cron', rows.length === 0)
+}
+
+console.log('\n— job categories —')
+{
+  const cats = (await db.query(`select slug, default_period from public.job_categories order by sort_order`)).rows
+  report(
+    'the nine old categories carried across with their slugs',
+    cats.length === 9 && cats[0].slug === 'gst_return' && cats[0].default_period === 'monthly',
+    cats.map((c) => c.slug).join(', '),
+  )
+
+  const enumGone = (await db.query(`select 1 from pg_type where typname = 'job_category'`)).rows.length === 0
+  report('the job_category enum is gone', enumGone)
+
+  const colType = (
+    await db.query(
+      `select data_type from information_schema.columns where table_name = 'jobs' and column_name = 'category'`,
+    )
+  ).rows[0].data_type
+  report('jobs.category is plain text now', colType === 'text', colType)
+
+  const client = (await db.query(`select id from public.clients limit 1`)).rows[0].id
+  let fkHolds = false
+  try {
+    await db.query(
+      `insert into public.jobs (client_id, title, category, status) values ($1, 'x', 'no_such_category', 'not_started')`,
+      [client],
+    )
+  } catch (e) {
+    fkHolds = e.message.includes('jobs_category_fkey') || e.message.includes('foreign key')
+  }
+  report('a job cannot name a category that does not exist', fkHolds)
+
+  const made = await as(MANAGER, async () => {
+    try {
+      await db.query(
+        `insert into public.job_categories (slug, name, default_period) values ('professional_tax', 'Professional tax', 'annual')`,
+      )
+      return true
+    } catch {
+      return false
+    }
+  })
+  report('a manager may create a category', made)
+
+  await refuses(
+    'staff may not create a category',
+    STAFF_A,
+    `insert into public.job_categories (slug, name) values ('sneaky', 'Sneaky')`,
+  )
+
+  await db.query(`update public.clients set categories = array['gst_return','tds'] where id = $1`, [client])
+  const tagged = (
+    await db.query(`select count(*)::int as n from public.clients where 'tds' = any(categories)`)
+  ).rows[0].n
+  report('a client carries several categories and can be found by one', tagged === 1, `${tagged} client with TDS`)
+}
+
+console.log('\n— adding an employee —')
+{
+  const add = (uid, username, email, password = 'starting-pass-123', role = 'staff') =>
+    as(uid, async () => {
+      try {
+        const r = await db.query(
+          `select public.create_employee($1, $2, 'Meera Iyer', $3::public.user_role, $4) as id`,
+          [email, username, role, password],
+        )
+        return { id: r.rows[0].id }
+      } catch (e) {
+        return { error: e.message.split('\n')[0] }
+      }
+    })
+
+  const created = await add(PARTNER, 'Meera', 'Meera.Iyer@aaaj.co.in')
+  report('a partner may add an employee', Boolean(created.id), created.error ?? '')
+
+  if (created.id) {
+    const profile = (
+      await db.query(`select username, full_name, initials, role from public.profiles where id = $1`, [created.id])
+    ).rows[0]
+    report(
+      'the profile is settled: lowercased username, name, initials, role',
+      profile?.username === 'meera' && profile?.full_name === 'Meera Iyer' && profile?.initials === 'MI' && profile?.role === 'staff',
+      JSON.stringify(profile),
+    )
+
+    const account = (
+      await db.query(
+        `select email, encrypted_password, confirmation_token, email_confirmed_at from auth.users where id = $1`,
+        [created.id],
+      )
+    ).rows[0]
+    report(
+      'the login is usable: confirmed, bcrypt password, no NULL tokens',
+      account.email === 'meera.iyer@aaaj.co.in' &&
+        account.encrypted_password.startsWith('$2') &&
+        account.confirmation_token === '' &&
+        account.email_confirmed_at !== null,
+      `${account.email}, hash ${account.encrypted_password.slice(0, 4)}…`,
+    )
+
+    const identity = (await db.query(`select count(*)::int as n from auth.identities where user_id = $1`, [created.id])).rows[0].n
+    report('a matching identity row exists', identity === 1)
+  }
+
+  const byManager = await add(MANAGER, 'intruder', 'intruder@aaaj.co.in')
+  report('a manager may not add an employee', Boolean(byManager.error), byManager.error ?? 'it went through')
+
+  const dupe = await add(PARTNER, 'meera', 'someone.else@aaaj.co.in')
+  report('a taken username is refused', Boolean(dupe.error), dupe.error ?? 'it went through')
+
+  const short = await add(PARTNER, 'shortpw', 'shortpw@aaaj.co.in', 'abc')
+  report('a short starting password is refused', Boolean(short.error), short.error ?? 'it went through')
+
+  const badEmail = await add(PARTNER, 'bademail', 'not-an-email')
+  report('a malformed email is refused', Boolean(badEmail.error), badEmail.error ?? 'it went through')
+}
+
+console.log('\n— completion is an approval —')
+{
+  const client = (await db.query(`select id from public.clients limit 1`)).rows[0].id
+  const fresh = async (status) =>
+    (
+      await db.query(
+        `insert into public.jobs (client_id, title, category, status) values ($1, 'Approval case', 'gst_return', $2) returning id`,
+        [client, status],
+      )
+    ).rows[0].id
+
+  const running = await fresh('in_progress')
+  await refuses(
+    'a manager cannot complete a job that skipped review',
+    MANAGER,
+    `update public.jobs set status = 'completed' where id = $1`,
+    [running],
+    'trigger',
+  )
+
+  const reviewed = await fresh('review')
+  const approved = await as(MANAGER, async () => {
+    try {
+      await db.query(`update public.jobs set status = 'completed' where id = $1`, [reviewed])
+      return (await db.query(`select status, approved_by, approved_at from public.jobs where id = $1`, [reviewed])).rows[0]
+    } catch (e) {
+      return { error: e.message.split('\n')[0] }
+    }
+  })
+  report(
+    'a manager approves from review, and the approver is recorded',
+    approved.status === 'completed' && approved.approved_by === MANAGER && approved.approved_at !== null,
+    approved.error ?? `approved_by=${approved.approved_by === MANAGER ? 'the manager' : approved.approved_by}`,
+  )
+
+  const forged = await as(PARTNER, async () => {
+    await db.query(`update public.jobs set approved_by = $2 where id = $1`, [reviewed, STAFF_A])
+    return (await db.query(`select approved_by from public.jobs where id = $1`, [reviewed])).rows[0].approved_by
+  })
+  report('nobody can rewrite who approved it', forged === MANAGER, `still ${forged === MANAGER ? 'the manager' : forged}`)
+
+  const reopened = await as(MANAGER, async () => {
+    await db.query(`update public.jobs set status = 'rework' where id = $1`, [reviewed])
+    return (await db.query(`select approved_by, approved_at from public.jobs where id = $1`, [reviewed])).rows[0]
+  })
+  report('reopening a job clears its approval', reopened.approved_by === null && reopened.approved_at === null)
+
+  await refuses(
+    'a signed-in manager cannot create a job already completed',
+    MANAGER,
+    `insert into public.jobs (client_id, title, category, status) values ($1, 'Shortcut', 'gst_return', 'completed')`,
+    [client],
+    'trigger',
+  )
 }
 
 console.log('\n— new account —')

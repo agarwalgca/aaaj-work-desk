@@ -53,6 +53,12 @@ export const RecurringIcon = (p: IconProps) => (
   </Icon>
 )
 
+export const CategoriesIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M3.5 3.5h5v5h-5zM11.5 3.5h5v5h-5zM3.5 11.5h5v5h-5zM11.5 11.5h5v5h-5z" />
+  </Icon>
+)
+
 export const SettingsIcon = (p: IconProps) => (
   <Icon {...p}>
     <circle cx="10" cy="10" r="2.5" />

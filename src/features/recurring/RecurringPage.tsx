@@ -8,7 +8,7 @@ import { Select } from '../../components/Select'
 import { TextField } from '../../components/TextField'
 import { Textarea } from '../../components/Textarea'
 import { db } from '../../lib/db'
-import { CATEGORY_LABEL, CATEGORY_OPTIONS } from '../../lib/labels'
+import { useCategories } from '../categories/useCategories'
 import { createJobTemplate, updateJobTemplate } from '../../lib/sync/outbox'
 import type { Frequency, JobCategory, JobPriority, JobTemplate } from '../../lib/types'
 import { personName, useLookups } from '../jobs/useJobData'
@@ -26,6 +26,7 @@ export function RecurringPage() {
   const me = useMe()
   const templates = useLiveQuery(() => db.job_templates.toArray(), [], [] as JobTemplate[])
   const { clients, profiles, clientById, profileById } = useLookups()
+  const categories = useCategories()
   const [editing, setEditing] = useState<JobTemplate | 'new' | null>(null)
   const [generating, setGenerating] = useState(false)
 
@@ -55,6 +56,7 @@ export function RecurringPage() {
       {editing && (
         <TemplateForm
           key={editing === 'new' ? 'new' : editing.id}
+          categoryOptions={categories.active.map((c) => ({ value: c.slug, label: c.name }))}
           template={editing === 'new' ? undefined : editing}
           clients={clients.filter((c) => c.is_active)}
           people={profiles.filter((p) => p.is_active)}
@@ -82,7 +84,7 @@ export function RecurringPage() {
                       {clientById.get(template.client_id)?.code ?? '—'}
                     </span>
                     <span className="min-w-0 flex-1 text-sm font-medium">{template.title}</span>
-                    <span className="text-ink-soft text-xs">{CATEGORY_LABEL[template.category]}</span>
+                    <span className="text-ink-soft text-xs">{categories.nameOf(template.category)}</span>
                     <span className="text-ink-soft text-xs">
                       {template.assigned_to ? personName(profileById.get(template.assigned_to)) : 'Unassigned'}
                     </span>
@@ -116,8 +118,10 @@ function TemplateForm({
   template,
   clients,
   people,
+  categoryOptions,
   onDone,
 }: {
+  categoryOptions: Array<{ value: string; label: string }>
   template?: JobTemplate
   clients: ClientOption[]
   people: PersonOption[]
@@ -126,7 +130,7 @@ function TemplateForm({
   const [form, setForm] = useState({
     client_id: template?.client_id ?? '',
     title: template?.title ?? '',
-    category: (template?.category ?? 'gst_return') as JobCategory,
+    category: (template?.category ?? categoryOptions[0]?.value ?? 'other') as JobCategory,
     frequency: (template?.frequency ?? 'monthly') as Frequency,
     assigned_to: template?.assigned_to ?? '',
     reviewer_id: template?.reviewer_id ?? '',
@@ -189,7 +193,7 @@ function TemplateForm({
         label="Category"
         value={form.category}
         onChange={(e) => set({ category: e.target.value as JobCategory })}
-        options={CATEGORY_OPTIONS}
+        options={categoryOptions}
       />
       <Select
         label="Priority"

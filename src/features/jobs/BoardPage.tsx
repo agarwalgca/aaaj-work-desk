@@ -4,7 +4,8 @@ import { SkeletonRows } from '../../components/Skeleton'
 import { PageHeader } from '../../components/PageHeader'
 import { Button } from '../../components/Button'
 import { StatusPill } from '../../components/StatusPill'
-import { CATEGORY_LABEL, STATUS_LABEL } from '../../lib/labels'
+import { STATUS_LABEL } from '../../lib/labels'
+import { useCategories } from '../categories/useCategories'
 import type { Job, JobStatus } from '../../lib/types'
 import { activeFilterCount, useBoardFilters } from './boardFilters'
 import { DUE_GROUP_LABEL, byDueThenPriority, groupByDue, isOpen, isOverdue } from './grouping'
@@ -26,6 +27,7 @@ const STATUS_OPTIONS: Array<{ value: string; label: string }> = [
 export function BoardPage() {
   const jobs = useAllJobs()
   const { clients, profiles, clientById, profileById } = useLookups()
+  const categories = useCategories()
   const f = useBoardFilters()
   const { listProps } = useRovingList()
   const today = new Date()
@@ -99,7 +101,7 @@ export function BoardPage() {
           onChange={(v) => f.set({ category: v as never })}
           options={[
             { value: 'all', label: 'All categories' },
-            ...Object.entries(CATEGORY_LABEL).map(([value, label]) => ({ value, label })),
+            ...categories.all.map((c) => ({ value: c.slug, label: c.name })),
           ]}
         />
         <Filter

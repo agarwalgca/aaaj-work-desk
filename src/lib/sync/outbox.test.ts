@@ -31,6 +31,8 @@ const JOB: Job = {
   deleted_at: null,
   template_id: null,
   period_key: null,
+  approved_by: null,
+  approved_at: null,
 }
 
 beforeEach(async () => {

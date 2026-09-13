@@ -15,6 +15,7 @@ import {
 import { syncNow, stopSync } from '../../lib/sync/engine'
 import { retryFailed } from '../../lib/sync/flush'
 import { useSyncState } from '../../lib/sync/state'
+import { ChangePassword } from './ChangePassword'
 
 export function SettingsPage() {
   const me = useMe()
@@ -57,6 +58,10 @@ export function SettingsPage() {
         <p className="text-ink-soft mt-2 text-xs">
           A partner changes any of this on the Team screen.
         </p>
+      </Panel>
+
+      <Panel title="Password">
+        <ChangePassword />
       </Panel>
 
       <Panel title="Install on this device">

@@ -8,9 +8,9 @@ import { PageHeader } from '../../components/PageHeader'
 import { Select } from '../../components/Select'
 import { Textarea } from '../../components/Textarea'
 import { TextField } from '../../components/TextField'
-import { CATEGORY_OPTIONS } from '../../lib/labels'
 import { createJob, createJobTemplate, updateJob } from '../../lib/sync/outbox'
-import type { Frequency, JobCategory, JobPriority } from '../../lib/types'
+import type { Category, Frequency, JobCategory, JobPriority } from '../../lib/types'
+import { useCategories } from '../categories/useCategories'
 import { PeriodField } from './PeriodField'
 import {
   currentPeriodLabel,
@@ -37,7 +37,7 @@ type Form = {
 const BLANK: Form = {
   client_id: '',
   title: '',
-  category: 'gst_return',
+  category: '',
   period_label: '',
   assigned_to: '',
   reviewer_id: '',
@@ -56,8 +56,11 @@ const BLANK: Form = {
 export function JobFormPage() {
   const { id } = useParams()
   const existing = useJob(id)
+  const categories = useCategories()
 
-  if (id && existing === undefined) {
+  // The form picks a default period from the category the moment it first renders,
+  // so it cannot open before the categories are known.
+  if ((id && existing === undefined) || categories.loading) {
     return (
       <section className="max-w-2xl">
         <SkeletonPanel lines={5} />
@@ -86,9 +89,24 @@ export function JobFormPage() {
         priority: existing.priority,
         description: existing.description,
       }
-    : BLANK
+    : {
+        ...BLANK,
+        // GST return if the firm still has it, otherwise whatever comes first.
+        category:
+          categories.active.find((c) => c.slug === 'gst_return')?.slug ??
+          categories.active[0]?.slug ??
+          'other',
+      }
 
-  return <JobForm key={id ?? 'new'} jobId={id} initial={initial} />
+  return (
+    <JobForm
+      key={id ?? 'new'}
+      jobId={id}
+      initial={initial}
+      categories={categories.active}
+      categoryBySlug={categories.bySlug}
+    />
+  )
 }
 
 /**
@@ -97,24 +115,35 @@ export function JobFormPage() {
  * return across thirty clients — and re-picking the client, category and period
  * each time would be the slowest part of it.
  */
-function JobForm({ jobId, initial }: { jobId: string | undefined; initial: Form }) {
+function JobForm({
+  jobId,
+  initial,
+  categories,
+  categoryBySlug,
+}: {
+  jobId: string | undefined
+  initial: Form
+  categories: Category[]
+  categoryBySlug: Map<JobCategory, Category>
+}) {
   const editing = Boolean(jobId)
   const navigate = useNavigate()
   const me = useMe()
   const { clients, profiles } = useLookups()
+  const periodFor = (slug: JobCategory) => defaultPeriodType(categoryBySlug.get(slug))
 
   const [form, setForm] = useState<Form>(() => {
     if (initial.period_label || jobId) return initial
     // A new job almost always concerns the period we are in, so start there
     // rather than with an empty select nobody asked to fill.
-    return { ...initial, period_label: currentPeriodLabel(defaultPeriodType(initial.category)) }
+    return { ...initial, period_label: currentPeriodLabel(periodFor(initial.category)) }
   })
   const [busy, setBusy] = useState(false)
   const [justSaved, setJustSaved] = useState<string | null>(null)
   // Derived from the label on first render so editing a job keeps its shape, then
   // owned by the person: changing category must not silently relabel their job.
   const [periodType, setPeriodType] = useState<PeriodType>(() =>
-    initial.period_label ? detectPeriodType(initial.period_label) : defaultPeriodType(initial.category),
+    initial.period_label ? detectPeriodType(initial.period_label) : periodFor(initial.category),
   )
   const touchedPeriod = useRef(false)
 
@@ -225,12 +254,19 @@ function JobForm({ jobId, initial }: { jobId: string | undefined; initial: Form 
             set({ category })
             // Only steer the period while the person has not chosen one.
             if (!touchedPeriod.current) {
-              const next = defaultPeriodType(category)
+              const next = periodFor(category)
               setPeriodType(next)
               set({ period_label: currentPeriodLabel(next) })
             }
           }}
-          options={CATEGORY_OPTIONS}
+          options={[
+            // A job filed under a category since retired keeps it rather than
+            // silently jumping to another on edit.
+            ...(categories.some((c) => c.slug === form.category)
+              ? []
+              : [{ value: form.category, label: categoryBySlug.get(form.category)?.name ?? form.category }]),
+            ...categories.map((c) => ({ value: c.slug, label: c.name })),
+          ]}
         />
 
         <div className="sm:col-span-2">

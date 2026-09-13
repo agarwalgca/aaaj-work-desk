@@ -1,4 +1,4 @@
-import type { Frequency, JobCategory } from '../../lib/types'
+import type { Category, Frequency } from '../../lib/types'
 import { recentPeriods } from '../recurring/periods'
 
 /**
@@ -12,23 +12,6 @@ import { recentPeriods } from '../recurring/periods'
  */
 export type PeriodType = Frequency | 'custom'
 
-/**
- * What a job of this kind is usually measured in. Defaults only, overridable on
- * every job — a GST notice might concern one month or a whole year.
- *
- * These are a guess at the firm's practice and should be corrected against it.
- */
-const DEFAULT_PERIOD: Record<JobCategory, PeriodType> = {
-  gst_return: 'monthly',
-  gst_notice: 'custom',
-  income_tax: 'annual',
-  tds: 'quarterly',
-  audit: 'annual',
-  roc: 'annual',
-  accounting: 'monthly',
-  certification: 'annual',
-  other: 'custom',
-}
 
 /** How far back to offer, by shape. Just over a year of months, two of quarters. */
 export const PERIODS_OFFERED: Record<Frequency, number> = {
@@ -38,7 +21,13 @@ export const PERIODS_OFFERED: Record<Frequency, number> = {
   annual: 4,
 }
 
-export const defaultPeriodType = (category: JobCategory): PeriodType => DEFAULT_PERIOD[category]
+/**
+ * What a job of this kind is usually measured in. The firm sets this on each
+ * category, so it is theirs to be right about. Overridable on every job — a GST
+ * notice might concern one month or a whole year.
+ */
+export const defaultPeriodType = (category: Pick<Category, 'default_period'> | undefined): PeriodType =>
+  category?.default_period ?? 'custom'
 
 /** The period of that shape we are in now — what a new job almost always means. */
 export function currentPeriodLabel(type: PeriodType, on = new Date()): string {

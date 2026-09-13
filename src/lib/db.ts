@@ -1,5 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie'
 import type {
+  Category,
   Client,
   Cursor,
   Draft,
@@ -20,6 +21,7 @@ import type {
 class WorkDeskDB extends Dexie {
   profiles!: EntityTable<Profile, 'id'>
   clients!: EntityTable<Client, 'id'>
+  job_categories!: EntityTable<Category, 'id'>
   jobs!: EntityTable<Job, 'id'>
   job_templates!: EntityTable<JobTemplate, 'id'>
   job_status_history!: EntityTable<JobStatusHistory, 'id'>
@@ -44,6 +46,14 @@ class WorkDeskDB extends Dexie {
     // Free-text that has been typed but not sent. Local only, never pushed.
     this.version(2).stores({ drafts: 'key, updated_at' })
 
+    // Categories the firm manages, and which of them each client has. `*categories`
+    // is a multi-entry index, so "every client with TDS work" is a lookup rather
+    // than a scan of every client.
+    this.version(4).stores({
+      job_categories: 'id, slug, is_active, updated_at',
+      clients: 'id, code, is_active, updated_at, *categories',
+    })
+
     // Recurring work. Only partners and managers ever sync these.
     this.version(3).stores({
       job_templates: 'id, client_id, frequency, is_active, updated_at',
@@ -66,6 +76,7 @@ export async function clearLocalData() {
       db.clients,
       db.jobs,
       db.job_templates,
+      db.job_categories,
       db.job_status_history,
       db.job_comments,
       db.outbox,
@@ -78,6 +89,7 @@ export async function clearLocalData() {
         db.clients.clear(),
         db.jobs.clear(),
         db.job_templates.clear(),
+        db.job_categories.clear(),
         db.job_status_history.clear(),
         db.job_comments.clear(),
         db.outbox.clear(),

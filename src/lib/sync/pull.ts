@@ -111,11 +111,12 @@ async function pullTable(table: SyncedTable, now: Date): Promise<number> {
  * not list, this device should not be holding.
  */
 async function reconcile(now: Date) {
-  const [jobIds, clientIds, profileIds, templateIds] = await Promise.all([
+  const [jobIds, clientIds, profileIds, templateIds, categoryIds] = await Promise.all([
     supabase.from('jobs').select('id').is('deleted_at', null).or(jobWindowFilter(now)),
     supabase.from('clients').select('id').is('deleted_at', null),
     supabase.from('profiles').select('id').is('deleted_at', null),
     supabase.from('job_templates').select('id').is('deleted_at', null),
+    supabase.from('job_categories').select('id').is('deleted_at', null),
   ])
 
   for (const result of [jobIds, clientIds, profileIds]) {
@@ -127,6 +128,11 @@ async function reconcile(now: Date) {
     throw new Error(`reconcile: ${templateIds.error.message}`)
   }
   const sweepTemplates = !templateIds.error
+  if (categoryIds.error && categoryIds.error.code !== MISSING_TABLE) {
+    throw new Error(`reconcile: ${categoryIds.error.message}`)
+  }
+  const sweepCategories = !categoryIds.error
+  const visibleCategories = new Set((categoryIds.data ?? []).map((r) => r.id))
 
   const visibleJobs = new Set((jobIds.data ?? []).map((r) => r.id))
   const visibleClients = new Set((clientIds.data ?? []).map((r) => r.id))
@@ -135,7 +141,7 @@ async function reconcile(now: Date) {
 
   await db.transaction(
     'rw',
-    [db.jobs, db.clients, db.profiles, db.job_templates, db.job_status_history, db.job_comments],
+    [db.jobs, db.clients, db.profiles, db.job_templates, db.job_categories, db.job_status_history, db.job_comments],
     async () => {
       const staleJobs = (await db.jobs.toArray())
         .filter((j) => !visibleJobs.has(j.id))
@@ -164,6 +170,13 @@ async function reconcile(now: Date) {
           .filter((t) => !visibleTemplates.has(t.id))
           .map((t) => t.id)
         if (staleTemplates.length) await db.job_templates.bulkDelete(staleTemplates)
+      }
+
+      if (sweepCategories) {
+        const staleCategories = (await db.job_categories.toArray())
+          .filter((c) => !visibleCategories.has(c.id))
+          .map((c) => c.id)
+        if (staleCategories.length) await db.job_categories.bulkDelete(staleCategories)
       }
     },
   )

@@ -11,6 +11,7 @@ import { updateProfile } from '../../lib/sync/outbox'
 import type { Profile, UserRole } from '../../lib/types'
 import { isOpen } from '../jobs/grouping'
 import { personName } from '../jobs/useJobData'
+import { AddEmployee } from './AddEmployee'
 
 const ROLES: UserRole[] = ['partner', 'manager', 'staff']
 
@@ -31,7 +32,7 @@ export function TeamPage() {
     <section className="max-w-3xl">
       <PageHeader title="Team" count={people.filter((p) => p.is_active).length} />
 
-      <AddSomeone />
+      {me?.role === 'partner' && <AddEmployee />}
 
       <ul className="grid gap-1.5">
         {ordered.map((person) => (
@@ -141,44 +142,6 @@ function EditPerson({ person, isMe }: { person: Profile; isMe: boolean }) {
           </span>
         )}
       </div>
-    </div>
-  )
-}
-
-/**
- * Not a form. Creating an account needs the service role key, which has no business
- * in a browser, and Phase 1 has no server to hold one — so this says plainly what
- * the two steps are instead of offering a button that cannot work.
- */
-function AddSomeone() {
-  const [open, setOpen] = useState(false)
-
-  return (
-    <div className="rounded-card border-rule bg-card mb-4 border p-4">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between text-left"
-      >
-        <span className="font-serif text-sm font-semibold">Adding someone to the firm</span>
-        <span className="text-brass text-xs underline underline-offset-2">
-          {open ? 'Hide' : 'Show'}
-        </span>
-      </button>
-
-      {open && (
-        <ol className="text-ink-soft mt-3 list-decimal space-y-2 pl-5 text-sm">
-          <li>
-            In the Supabase dashboard, <strong>Authentication → Users → Add user</strong>. Give their
-            email address and a starting password, and tick <strong>Auto Confirm User</strong>.
-          </li>
-          <li>
-            They appear here within a few seconds as <strong>Staff</strong>. Use{' '}
-            <strong>Change</strong> to set their name, the username they will sign in with, and their
-            role.
-          </li>
-        </ol>
-      )}
     </div>
   )
 }

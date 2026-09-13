@@ -8,6 +8,7 @@ import { SyncChip } from '../features/sync/SyncChip'
 import { Wordmark } from '../components/Wordmark'
 import {
   BoardIcon,
+  CategoriesIcon,
   ClientsIcon,
   MoreIcon,
   MyWorkIcon,
@@ -37,6 +38,13 @@ const NAV: Array<{
     to: '/recurring',
     label: 'Recurring',
     Icon: RecurringIcon,
+    mobile: false,
+    roles: ['partner', 'manager'],
+  },
+  {
+    to: '/categories',
+    label: 'Categories',
+    Icon: CategoriesIcon,
     mobile: false,
     roles: ['partner', 'manager'],
   },

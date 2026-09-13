@@ -6,16 +6,12 @@
 
 export type UserRole = 'partner' | 'manager' | 'staff'
 
-export type JobCategory =
-  | 'gst_return'
-  | 'gst_notice'
-  | 'income_tax'
-  | 'tds'
-  | 'audit'
-  | 'roc'
-  | 'accounting'
-  | 'certification'
-  | 'other'
+/**
+ * A category's slug. It was a fixed union when categories were a Postgres enum;
+ * the firm now creates its own, so it is a string that names a row in
+ * job_categories. The slug never changes once made — the name is what gets edited.
+ */
+export type JobCategory = string
 
 export type JobStatus =
   | 'not_started'
@@ -70,6 +66,17 @@ export type Client = Row & {
   gstin: string | null
   pan: string | null
   is_active: boolean
+  /** Slugs of the kinds of work this client has. Several, usually. */
+  categories: JobCategory[]
+}
+
+export type Category = Row & {
+  slug: JobCategory
+  name: string
+  /** What a job of this kind is usually measured in. The firm sets it. */
+  default_period: Frequency | 'custom'
+  sort_order: number
+  is_active: boolean
 }
 
 export type Job = Row & {
@@ -90,6 +97,9 @@ export type Job = Row & {
   template_id: string | null
   /** Which period of that template this job covers, e.g. "M-2026-08". */
   period_key: string | null
+  /** Set by the database when a manager or partner approves it from review. */
+  approved_by: string | null
+  approved_at: string | null
 }
 
 /**
@@ -130,6 +140,7 @@ export type JobComment = Row & {
 /** Tables that sync. Order matters on pull: a job needs its client to exist first. */
 export const SYNCED_TABLES = [
   'profiles',
+  'job_categories',
   'clients',
   'job_templates',
   'jobs',

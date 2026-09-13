@@ -4,11 +4,15 @@ import { StatusPill } from '../../components/StatusPill'
 import { STATUS_LABEL } from '../../lib/labels'
 import { changeJobStatus } from '../../lib/sync/outbox'
 import type { Job, JobStatus, UserRole } from '../../lib/types'
-import { allowedMoves } from './transitions'
+import { allowedMoves, isApproval } from './transitions'
 
 /**
  * Bottom sheet on a phone, centred panel on a desktop. One of the two places a
  * shadow is allowed, because it genuinely floats above the list.
+ *
+ * Completing a job is an approval, so it is not offered as one more status among
+ * seven. When a job is in review and the person can approve it, approving leads,
+ * and sending it back sits right beside it — those are the two real answers.
  */
 export function StatusSheet({
   job,
@@ -25,11 +29,17 @@ export function StatusSheet({
   const [busy, setBusy] = useState(false)
   const moves = allowedMoves(job.status, role)
 
+  const canApprove = moves.some((to) => isApproval(job.status, to))
+  const others = moves.filter((to) => !isApproval(job.status, to) && !(canApprove && to === 'rework'))
+
   async function move(to: JobStatus) {
     setBusy(true)
     await changeJobStatus(job.id, to, actorId, note.trim() || undefined)
     onClose()
   }
+
+  // What staff see once their part is done, instead of an unexplained empty sheet.
+  const waitingOnApproval = role === 'staff' && job.status === 'review'
 
   return (
     <div
@@ -49,7 +59,12 @@ export function StatusSheet({
           <StatusPill status={job.status} />
         </div>
 
-        {moves.length === 0 ? (
+        {waitingOnApproval ? (
+          <p className="text-ink-soft mt-4 text-sm">
+            <strong className="text-ink">Waiting for approval.</strong> A manager or partner reviews
+            it and either approves it as completed or sends it back to you.
+          </p>
+        ) : moves.length === 0 ? (
           <p className="text-ink-soft mt-4 text-sm">
             There is nothing you can move this to. A manager takes it from here.
           </p>
@@ -58,23 +73,44 @@ export function StatusSheet({
             <input
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="Note (optional)"
-              className="rounded-control border-rule placeholder:text-ink-soft/50 focus:border-brass mt-3 h-9 w-full border px-2 text-sm outline-none"
+              placeholder={canApprove ? 'Note — say why, if sending back' : 'Note (optional)'}
+              className="rounded-control border-rule placeholder:text-ink-soft/50 focus:border-brass mt-3 h-9 w-full border px-2 text-sm transition-colors duration-150 outline-none"
             />
-            <div className="mt-3 grid gap-1.5">
-              {moves.map((status) => (
-                <button
-                  key={status}
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void move(status)}
-                  className="rounded-control border-rule hover:bg-brass-wash flex items-center justify-between border px-3 py-2 text-sm disabled:opacity-60"
-                >
-                  <span>Move to {STATUS_LABEL[status].toLowerCase()}</span>
-                  <StatusPill status={status} />
-                </button>
-              ))}
-            </div>
+
+            {canApprove && (
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <Button disabled={busy} onClick={() => void move('completed')}>
+                  Approve
+                </Button>
+                <Button variant="secondary" disabled={busy} onClick={() => void move('rework')}>
+                  Send back
+                </Button>
+              </div>
+            )}
+
+            {others.length > 0 && (
+              <div className={`grid gap-1 ${canApprove ? 'border-rule mt-4 border-t pt-3' : 'mt-3'}`}>
+                {canApprove && <p className="text-ink-soft mb-1 text-xs">Or move it to</p>}
+                {others.map((status) => (
+                  <button
+                    key={status}
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void move(status)}
+                    className="rounded-control border-rule hover:bg-brass-wash flex items-center justify-between border px-3 py-2 text-sm transition-colors duration-150 disabled:opacity-60"
+                  >
+                    <span>Move to {STATUS_LABEL[status].toLowerCase()}</span>
+                    <StatusPill status={status} />
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {!canApprove && role !== 'staff' && job.status !== 'completed' && (
+              <p className="text-ink-soft mt-3 text-xs">
+                To complete this job, move it to review first — completing is an approval.
+              </p>
+            )}
           </>
         )}
 

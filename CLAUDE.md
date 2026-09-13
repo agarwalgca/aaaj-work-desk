@@ -106,6 +106,32 @@ line to hold if anyone asks for it.
   with a stub `auth` schema, and asserts the permission rules. Dev-only; it never
   ships. `scripts/test-rls.ts` re-checks the same rules through PostgREST once the
   migration is live.
+- **Categories are rows, not an enum.** The firm adds its own from the app, so a
+  category is a `job_categories` row with a stable `slug` and an editable `name`.
+  The slugs are the old enum strings, so every existing job and template stayed
+  valid without being rewritten. Code must never assume a particular slug exists —
+  read the list. `default_period` lives on the row: the firm, not the code, decides
+  that a GST return is measured in months.
+- **A category is retired, never deleted.** Jobs and clients are filed under it and
+  a foreign key holds them to it. Retiring hides it from forms; everything already
+  under it keeps its name.
+- **A client's categories are a `text[]`, not a join table.** A client carries a
+  handful, and a join table would be another synced table and a second write path
+  kept in step for what is in practice a tag list. Dexie indexes it multi-entry
+  (`*categories`), so filtering by one is a lookup.
+- **Adding an employee writes to Supabase's own auth tables.** `create_employee()`
+  inserts into `auth.users` and `auth.identities`, which Supabase does not
+  officially support and a GoTrue upgrade could break. The firm chose this over an
+  invite Edge Function knowingly. **If new employees ever cannot sign in after a
+  Supabase upgrade, look here first.** It is also the one write that does not go
+  through the outbox: the outbox persists to IndexedDB, and a password must not
+  survive anything. Adding someone and changing a password both need a connection.
+- **Completing a job is an approval.** `completed` is reachable only from `review`,
+  only by a manager or partner, and `approved_by` / `approved_at` are set by the
+  `jobs_guard` trigger — never written by a client, cleared when a job is reopened,
+  held otherwise. A `BEFORE INSERT` guard stops a job being created already
+  completed, which would otherwise be a way round the whole rule. Maintenance in the
+  SQL editor, with no signed-in user, is exempt.
 - **Sign-in is by username, not email.** `profiles.username` is a column of its own,
   unrelated to the account's email address. Supabase Auth is keyed by email, so the
   login screen bridges the two through `public.email_for_username(p_username text)`
@@ -258,6 +284,14 @@ Established so far:
   `email_for_username` lowercases its argument. Display names come from
   `profiles.full_name`, never from the username.
 - The partner account is `gaurav@aaaj.co.in`, username **`nitesh`**.
+- **Usernames are case-insensitive everywhere** — at sign-in (`email_for_username`
+  lowercases) and at creation (`create_employee` lowercases, and the form lowercases
+  as it is typed). Passwords are case-sensitive and must stay so; when someone says
+  sign-in is "case-sensitive", it is almost always the password.
+- **Clients have several categories**, not one. Most carry more than one line of
+  work.
+- **Self-approval is not blocked.** A manager assigned a job can approve their own
+  work. Whether the firm wants maker-checker separation is an open question.
 - **Staff status transitions**, as implemented in `public.jobs_guard()`:
   `not_started → in_progress`, `in_progress ⇄ on_hold`, `in_progress → review`,
   `on_hold → review`, `rework → in_progress`. The brief wrote this as a chain, so

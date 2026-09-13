@@ -11,6 +11,7 @@ import { updateClient } from '../../lib/sync/outbox'
 import { byDueThenPriority, isOpen } from '../jobs/grouping'
 import { JobRow } from '../jobs/JobRow'
 import { ClientForm } from './ClientsPage'
+import { useCategories } from '../categories/useCategories'
 
 export function ClientDetailPage() {
   const { id } = useParams()
@@ -22,6 +23,7 @@ export function ClientDetailPage() {
     [],
   )
   const [editing, setEditing] = useState(false)
+  const categories = useCategories()
   const today = new Date()
 
   if (client === undefined) {
@@ -63,13 +65,27 @@ export function ClientDetailPage() {
       </PageHeader>
 
       {editing ? (
-        <ClientForm client={client} onDone={() => setEditing(false)} />
+        <ClientForm client={client} categories={categories.active} onDone={() => setEditing(false)} />
       ) : (
         <dl className="rounded-card border-rule bg-card mb-6 grid grid-cols-2 gap-x-6 gap-y-2 border p-4 text-sm sm:grid-cols-4">
           <Field term="Code" value={client.code} mono />
           <Field term="GSTIN" value={client.gstin ?? '—'} mono />
           <Field term="PAN" value={client.pan ?? '—'} mono />
           <Field term="Status" value={client.is_active ? 'Active' : 'Inactive'} />
+          <div className="col-span-2 sm:col-span-4">
+            <dt className="text-ink-soft text-[11px] tracking-wide uppercase">Work</dt>
+            <dd className="mt-1 flex flex-wrap gap-1">
+              {(client.categories ?? []).length === 0 ? (
+                <span className="text-ink-soft text-sm">None set</span>
+              ) : (
+                client.categories.map((slug) => (
+                  <span key={slug} className="rounded-control border-rule border px-2 py-0.5 text-xs">
+                    {categories.nameOf(slug)}
+                  </span>
+                ))
+              )}
+            </dd>
+          </div>
         </dl>
       )}
 

@@ -1,6 +1,7 @@
 import { dueDateFor } from '../../features/recurring/periods'
 import { db } from '../db'
 import type {
+  Category,
   Client,
   Job,
   JobStatus,
@@ -46,18 +47,31 @@ async function enqueue(
 
 /** Fields the server owns. Sending them back would only invite a conflict. */
 function scrub(patch: Record<string, unknown>) {
-  const { id, created_at, updated_at, started_at, completed_at, ...rest } = patch
+  // approved_by and approved_at belong to the jobs_guard trigger. A client sending
+  // them would be ignored at best, and is exactly the forgery the trigger refuses.
+  const { id, created_at, updated_at, started_at, completed_at, approved_by, approved_at, ...rest } = patch
   void id
   void created_at
   void updated_at
   void started_at
   void completed_at
+  void approved_by
+  void approved_at
   return rest
 }
 
 type NewJob = Omit<
   Job,
-  'id' | 'created_at' | 'updated_at' | 'deleted_at' | 'started_at' | 'completed_at' | 'template_id' | 'period_key'
+  | 'id'
+  | 'created_at'
+  | 'updated_at'
+  | 'deleted_at'
+  | 'started_at'
+  | 'completed_at'
+  | 'template_id'
+  | 'period_key'
+  | 'approved_by'
+  | 'approved_at'
 > &
   // Only the generator fills these in; every other caller is making a one-off job.
   Partial<Pick<Job, 'template_id' | 'period_key'>>
@@ -69,6 +83,8 @@ export async function createJob(input: NewJob): Promise<string> {
     ...input,
     template_id: input.template_id ?? null,
     period_key: input.period_key ?? null,
+    approved_by: null,
+    approved_at: null,
     id,
     created_at: at,
     updated_at: at,
@@ -188,11 +204,18 @@ export async function oldestPendingAt(): Promise<string | null> {
 // ---------------------------------------------------------------------------
 
 export async function createClient(
-  input: Pick<Client, 'name' | 'code' | 'gstin' | 'pan' | 'is_active'>,
+  input: Pick<Client, 'name' | 'code' | 'gstin' | 'pan' | 'is_active'> & Partial<Pick<Client, 'categories'>>,
 ): Promise<string> {
   const id = newId()
   const at = now()
-  const row: Client = { ...input, id, created_at: at, updated_at: at, deleted_at: null }
+  const row: Client = {
+    ...input,
+    categories: input.categories ?? [],
+    id,
+    created_at: at,
+    updated_at: at,
+    deleted_at: null,
+  }
 
   await db.transaction('rw', [db.clients, db.outbox], async () => {
     await db.clients.put(row)
@@ -303,4 +326,69 @@ export async function generateJobsForPeriod(
   }
 
   return { created, skipped }
+}
+
+// ---------------------------------------------------------------------------
+// Categories
+// ---------------------------------------------------------------------------
+
+/**
+ * A stable key from a name: "Professional Tax" becomes "professional_tax".
+ *
+ * Made once and never changed, because jobs and clients refer to a category by it.
+ * Renaming the category changes only its name, so nothing that points at it has
+ * to be rewritten.
+ */
+export function slugFor(name: string, taken: Set<string>): string {
+  const base =
+    name
+      .toLowerCase()
+      .normalize('NFKD')
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .slice(0, 36) || 'category'
+
+  let slug = base.length >= 2 ? base : `${base}_x`
+  let n = 2
+  while (taken.has(slug)) slug = `${base}_${n++}`
+  return slug
+}
+
+export async function createCategory(
+  input: Pick<Category, 'name' | 'default_period'>,
+): Promise<string> {
+  const id = newId()
+  const at = now()
+
+  await db.transaction('rw', [db.job_categories, db.outbox], async () => {
+    const existing = await db.job_categories.toArray()
+    const slug = slugFor(input.name, new Set(existing.map((c) => c.slug)))
+    const sort_order = Math.max(0, ...existing.map((c) => c.sort_order)) + 10
+
+    const row: Category = {
+      id,
+      slug,
+      name: input.name.trim(),
+      default_period: input.default_period,
+      sort_order,
+      is_active: true,
+      created_at: at,
+      updated_at: at,
+      deleted_at: null,
+    }
+    await db.job_categories.put(row)
+    await enqueue('job_categories', 'insert', id, { ...scrub(row), id })
+  })
+
+  return id
+}
+
+export async function updateCategory(id: string, patch: Partial<Pick<Category, 'name' | 'default_period' | 'is_active'>>) {
+  await db.transaction('rw', [db.job_categories, db.outbox], async () => {
+    const existing = await db.job_categories.get(id)
+    if (!existing) throw new Error(`No local copy of category ${id}`)
+    await db.job_categories.put({ ...existing, ...patch, updated_at: now() })
+    // The slug is deliberately not patchable: everything refers to it.
+    await enqueue('job_categories', 'update', id, scrub(patch))
+  })
 }

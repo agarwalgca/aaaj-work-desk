@@ -9,18 +9,17 @@ import {
 const on = new Date(2026, 8, 12) // 12 Sep 2026
 
 describe('what a category is usually measured in', () => {
-  it('matches how the work actually recurs', () => {
-    expect(defaultPeriodType('gst_return')).toBe('monthly')
-    expect(defaultPeriodType('accounting')).toBe('monthly')
-    expect(defaultPeriodType('tds')).toBe('quarterly')
-    expect(defaultPeriodType('income_tax')).toBe('annual')
-    expect(defaultPeriodType('audit')).toBe('annual')
-    expect(defaultPeriodType('roc')).toBe('annual')
+  // The firm sets default_period on each category now; the code only reads it.
+  it('follows whatever the category says', () => {
+    expect(defaultPeriodType({ default_period: 'monthly' })).toBe('monthly')
+    expect(defaultPeriodType({ default_period: 'quarterly' })).toBe('quarterly')
+    expect(defaultPeriodType({ default_period: 'annual' })).toBe('annual')
+    expect(defaultPeriodType({ default_period: 'custom' })).toBe('custom')
   })
 
-  it('leaves the open-ended ones to a person', () => {
-    expect(defaultPeriodType('gst_notice')).toBe('custom')
-    expect(defaultPeriodType('other')).toBe('custom')
+  it('falls back to free text for a category it cannot see', () => {
+    // A job whose category has not synced yet should not be forced into a shape.
+    expect(defaultPeriodType(undefined)).toBe('custom')
   })
 })
 

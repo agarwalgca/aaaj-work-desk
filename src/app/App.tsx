@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router'
 import { LoginPage } from '../features/auth/LoginPage'
 import { ResetPasswordPage } from '../features/auth/ResetPasswordPage'
 import { UpdatePrompt } from '../features/pwa/UpdatePrompt'
+import { CategoriesPage } from '../features/categories/CategoriesPage'
 import { ClientDetailPage } from '../features/clients/ClientDetailPage'
 import { ClientsPage } from '../features/clients/ClientsPage'
 import { BoardPage } from '../features/jobs/BoardPage'
@@ -80,6 +81,7 @@ export function App() {
               <Route path="board" element={<BoardPage />} />
               <Route path="jobs/new" element={<JobFormPage />} />
               <Route path="recurring" element={<RecurringPage />} />
+              <Route path="categories" element={<CategoriesPage />} />
               <Route path="jobs/:id/edit" element={<JobFormPage />} />
             </Route>
 

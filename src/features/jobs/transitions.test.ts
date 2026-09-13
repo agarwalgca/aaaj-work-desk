@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { allowedMoves } from './transitions'
+import { allowedMoves, isApproval } from './transitions'
 
 /**
- * These must match public.jobs_guard() in supabase/migrations/0001_init.sql. If
- * the two ever drift, the sheet offers a move the server refuses and the person
- * finds out ten seconds later through a failed outbox entry.
+ * These must match public.jobs_guard(). If the two drift, the sheet offers a move
+ * the server refuses and the person finds out through a failed outbox entry.
  */
 describe('what staff may do', () => {
   it('lets work start, pause, resume and go for review', () => {
@@ -24,18 +23,27 @@ describe('what staff may do', () => {
   it('leaves a job in review alone — the reviewer takes it from there', () => {
     expect(allowedMoves('review', 'staff')).toEqual([])
   })
-
-  it('does not reopen something already closed', () => {
-    expect(allowedMoves('completed', 'staff')).toEqual([])
-    expect(allowedMoves('cancelled', 'staff')).toEqual([])
-  })
 })
 
-describe('what managers and partners may do', () => {
-  it('is anything except a move to where it already is', () => {
-    expect(allowedMoves('review', 'manager')).toContain('completed')
+describe('completion is an approval', () => {
+  it('is reachable only from review, for a manager and a partner alike', () => {
+    for (const role of ['manager', 'partner'] as const) {
+      expect(allowedMoves('review', role)).toContain('completed')
+      for (const from of ['not_started', 'in_progress', 'on_hold', 'rework'] as const) {
+        expect(allowedMoves(from, role)).not.toContain('completed')
+      }
+    }
+  })
+
+  it('still lets a manager cancel or send back from anywhere', () => {
+    expect(allowedMoves('in_progress', 'manager')).toContain('cancelled')
     expect(allowedMoves('review', 'manager')).toContain('rework')
-    expect(allowedMoves('review', 'manager')).not.toContain('review')
     expect(allowedMoves('completed', 'partner')).toContain('in_progress')
+  })
+
+  it('names the one move that is an approval', () => {
+    expect(isApproval('review', 'completed')).toBe(true)
+    expect(isApproval('in_progress', 'completed')).toBe(false)
+    expect(isApproval('review', 'rework')).toBe(false)
   })
 })

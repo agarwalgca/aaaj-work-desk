@@ -8,7 +8,8 @@ import { SavedIndicator } from '../../components/SavedIndicator'
 import { OverdueMark, PriorityMark, StatusPill } from '../../components/StatusPill'
 import { db } from '../../lib/db'
 import { dueLabel, formatDate, formatDateTime } from '../../lib/dates'
-import { CATEGORY_LABEL, STATUS_LABEL } from '../../lib/labels'
+import { STATUS_LABEL } from '../../lib/labels'
+import { useCategories } from '../categories/useCategories'
 import { addComment, updateJob } from '../../lib/sync/outbox'
 import type { Profile } from '../../lib/types'
 import { isOverdue } from './grouping'
@@ -28,6 +29,7 @@ export function JobDetailPage() {
   const history = useJobHistory(id)
   const comments = useJobComments(id)
   const { clients, profiles, clientById, profileById } = useLookups()
+  const { nameOf } = useCategories()
   const [moving, setMoving] = useState(false)
   const today = new Date()
 
@@ -76,11 +78,23 @@ export function JobDetailPage() {
 
         <dl className="border-rule mt-4 grid grid-cols-2 gap-x-6 gap-y-2 border-t pt-3 text-sm sm:grid-cols-3">
           <Field term="Period" value={job.period_label || '—'} mono />
-          <Field term="Category" value={CATEGORY_LABEL[job.category]} />
+          <Field term="Category" value={nameOf(job.category)} />
           <Field term="Due" value={formatDate(job.due_date)} mono note={dueLabel(job.due_date, today)} />
           <Field term="Assigned to" value={job.assigned_to ? personName(profileById.get(job.assigned_to)) : 'Unassigned'} />
           <Field term="Reviewer" value={job.reviewer_id ? personName(profileById.get(job.reviewer_id)) : '—'} />
           <Field term="Started" value={job.started_at ? formatDate(job.started_at) : '—'} mono />
+          {job.status === 'completed' && (
+            <Field
+              term="Approved"
+              value={
+                job.approved_by
+                  ? `${personName(profileById.get(job.approved_by))}, ${formatDate(job.approved_at)}`
+                  : // Completed before approval existed, or seeded — say so rather than invent.
+                    'Before approvals were recorded'
+              }
+            />
+          )}
+          {job.status === 'review' && <Field term="Approval" value="Waiting for a manager or partner" />}
         </dl>
 
         {job.description && (

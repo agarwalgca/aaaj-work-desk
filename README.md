@@ -60,7 +60,12 @@ Run these once, in the Supabase SQL editor, in order:
    scheduling anything and says so. Re-runnable.
 4. `supabase/migrations/0004_due_date_rules.sql` — the optional due-date rule on a
    template, and the arithmetic behind it. Re-runnable.
-5. `supabase/seed.sql` — three fictional clients, six people and twenty-five jobs.
+5. `supabase/migrations/0005_schedule_status.sql` — lets the app check that the
+   monthly schedule actually exists. Re-runnable.
+6. `supabase/migrations/0006_categories_employees_approval.sql` — categories as
+   editable rows, a client's categories, adding an employee from the app, and
+   completion as an approval. Re-runnable.
+7. `supabase/seed.sql` — three fictional clients, six people and twenty-five jobs.
    Development data. It expects the partner account (`gaurav@aaaj.co.in`) to exist
    already and will stop with a clear message if it does not.
 
@@ -82,6 +87,24 @@ Before the firm goes live:
 ```sql
 delete from auth.users where email like '%@seed.aaaj.co.in';
 ```
+
+## Categories, employees and approval
+
+**Categories** are managed by partners and managers on the Categories screen, with
+no deploy. Each has a name and what it is usually measured in — which decides the
+period a new job opens on. A category in use is retired rather than deleted: it
+leaves the forms, and jobs and clients already under it keep it. Clients carry
+several, and the Clients screen filters by any one of them.
+
+**Employees** are added by a partner on the Team screen — name, username, email,
+role and a starting password — and can sign in straight away. They change the
+password under Settings. This needs a connection: it is the one write that is not
+saved to the device first, because a password must never be stored on it.
+
+**Completion is an approval.** A job reaches Completed only from Review, only when a
+manager or partner approves it, and the job records who did and when. Staff see
+"Waiting for approval" once their part is done; the reviewer sees Approve and Send
+back.
 
 ## Recurring work
 
@@ -174,6 +197,9 @@ thing that would change if Phase 2 ever adds one.
 | Reassign    | ✓       | ✓       | —     |
 | Clients     | ✓ edit  | ✓ edit  | read  |
 | Recurring   | ✓       | ✓       | —     |
+| Categories  | ✓       | ✓       | —     |
+| Add employee | ✓      | —       | —     |
+| Approve completion | ✓ | ✓      | —     |
 | Team        | ✓       | —       | —     |
 
 The nav and the controls follow this table, but it is courtesy rather than
