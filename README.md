@@ -101,10 +101,11 @@ role and a starting password — and can sign in straight away. They change the
 password under Settings. This needs a connection: it is the one write that is not
 saved to the device first, because a password must never be stored on it.
 
-**Completion is an approval.** A job reaches Completed only from Review, only when a
-manager or partner approves it, and the job records who did and when. Staff see
-"Waiting for approval" once their part is done; the reviewer sees Approve and Send
-back.
+**Completion is an approval.** A job reaches Completed only from Review, and the
+job records who approved it and when. A manager approves staff work; a manager's
+own job, or another manager's, is approved by a partner; a partner can approve
+anybody's. Staff see "Waiting for approval" once their part is done; the reviewer
+sees Approve and Send back.
 
 ## Recurring work
 

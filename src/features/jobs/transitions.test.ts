@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { allowedMoves, isApproval } from './transitions'
+import { allowedMoves, approversFor, isApproval } from './transitions'
 
 /**
  * These must match public.jobs_guard(). If the two drift, the sheet offers a move
@@ -33,6 +33,20 @@ describe('completion is an approval', () => {
         expect(allowedMoves(from, role)).not.toContain('completed')
       }
     }
+  })
+
+  it("sends a manager's work to a partner, and lets a partner approve anyone's", () => {
+    expect(allowedMoves('review', 'manager', 'staff')).toContain('completed')
+    expect(allowedMoves('review', 'manager', 'manager')).not.toContain('completed')
+    expect(allowedMoves('review', 'manager', 'partner')).not.toContain('completed')
+    for (const assignee of ['staff', 'manager', 'partner'] as const) {
+      expect(allowedMoves('review', 'partner', assignee)).toContain('completed')
+    }
+  })
+
+  it('treats an assignee not yet synced as needing a partner', () => {
+    expect(approversFor(undefined)).toEqual(['partner'])
+    expect(approversFor(null)).toEqual(['partner', 'manager'])
   })
 
   it('still lets a manager cancel or send back from anywhere', () => {

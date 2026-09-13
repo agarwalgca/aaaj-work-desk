@@ -1,7 +1,9 @@
+import { useLiveQuery } from 'dexie-react-hooks'
 import { useState } from 'react'
 import { Button } from '../../components/Button'
 import { StatusPill } from '../../components/StatusPill'
 import { STATUS_LABEL } from '../../lib/labels'
+import { db } from '../../lib/db'
 import { changeJobStatus } from '../../lib/sync/outbox'
 import type { Job, JobStatus, UserRole } from '../../lib/types'
 import { allowedMoves, isApproval } from './transitions'
@@ -27,7 +29,12 @@ export function StatusSheet({
 }) {
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
-  const moves = allowedMoves(job.status, role)
+  const assignee = useLiveQuery(
+    () => (job.assigned_to ? db.profiles.get(job.assigned_to) : undefined),
+    [job.assigned_to],
+  )
+  const assigneeRole = job.assigned_to ? assignee?.role : null
+  const moves = allowedMoves(job.status, role, assigneeRole)
 
   const canApprove = moves.some((to) => isApproval(job.status, to))
   const others = moves.filter((to) => !isApproval(job.status, to) && !(canApprove && to === 'rework'))
@@ -106,7 +113,13 @@ export function StatusSheet({
               </div>
             )}
 
-            {!canApprove && role !== 'staff' && job.status !== 'completed' && (
+            {!canApprove && role !== 'staff' && job.status === 'review' && (
+              <p className="text-ink-soft mt-3 text-xs">
+                <strong className="text-ink">Waiting for a partner.</strong> A job done by a manager
+                is approved by a partner.
+              </p>
+            )}
+            {!canApprove && role !== 'staff' && job.status !== 'completed' && job.status !== 'review' && (
               <p className="text-ink-soft mt-3 text-xs">
                 To complete this job, move it to review first — completing is an approval.
               </p>

@@ -283,6 +283,18 @@ begin
       raise exception 'a job is completed by approving it from review — send it for review first'
         using errcode = 'check_violation';
     end if;
+    -- A manager approves staff work. Work done by a manager — their own or another
+    -- manager's — and anything assigned to a partner is approved by a partner.
+    -- Both the old and new assignee are checked, so reassigning a job to someone
+    -- junior in the same update as approving it does not get round this.
+    if caller = 'manager' and exists (
+      select 1 from public.profiles p
+      where p.id in (old.assigned_to, new.assigned_to)
+        and (p.id = auth.uid() or p.role in ('manager', 'partner'))
+    ) then
+      raise exception 'a job done by a manager is approved by a partner'
+        using errcode = 'check_violation';
+    end if;
     new.approved_by := auth.uid();
     new.approved_at := now();
   elsif old.status = 'completed' and new.status is distinct from 'completed' then

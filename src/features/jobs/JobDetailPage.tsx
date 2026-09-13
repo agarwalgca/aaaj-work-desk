@@ -14,6 +14,7 @@ import { addComment, updateJob } from '../../lib/sync/outbox'
 import type { Profile } from '../../lib/types'
 import { isOverdue } from './grouping'
 import { StatusSheet } from './StatusSheet'
+import { approversFor } from './transitions'
 import {
   personName,
   useJob,
@@ -94,7 +95,16 @@ export function JobDetailPage() {
               }
             />
           )}
-          {job.status === 'review' && <Field term="Approval" value="Waiting for a manager or partner" />}
+          {job.status === 'review' && (
+            <Field
+              term="Approval"
+              value={
+                approversFor(job.assigned_to ? profileById.get(job.assigned_to)?.role : null).includes('manager')
+                  ? 'Waiting for a manager or partner'
+                  : 'Waiting for a partner'
+              }
+            />
+          )}
         </dl>
 
         {job.description && (

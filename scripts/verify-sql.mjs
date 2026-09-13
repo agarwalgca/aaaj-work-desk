@@ -22,6 +22,7 @@ const sql = (p) => readFileSync(resolve(root, p), 'utf8')
 
 const PARTNER = '99999999-9999-4999-8999-999999999999'
 const MANAGER = '11111111-1111-4111-8111-111111111111' // Priya
+const MANAGER_B = '22222222-2222-4222-8222-222222222222' // Arjun
 const STAFF_A = '33333333-3333-4333-8333-333333333333' // Kavya
 const STAFF_B = '44444444-4444-4444-8444-444444444444' // Rohit
 
@@ -826,6 +827,62 @@ console.log('\n— completion is an approval —')
     return (await db.query(`select approved_by, approved_at from public.jobs where id = $1`, [reviewed])).rows[0]
   })
   report('reopening a job clears its approval', reopened.approved_by === null && reopened.approved_at === null)
+
+  const assignedReview = async (assignee) =>
+    (
+      await db.query(
+        `insert into public.jobs (client_id, title, category, status, assigned_to) values ($1, 'Manager work', 'gst_return', 'review', $2) returning id`,
+        [client, assignee],
+      )
+    ).rows[0].id
+
+  await refuses(
+    'a manager cannot approve their own job',
+    MANAGER,
+    `update public.jobs set status = 'completed' where id = $1`,
+    [await assignedReview(MANAGER)],
+    'trigger',
+  )
+  await refuses(
+    "a manager cannot approve another manager's job",
+    MANAGER,
+    `update public.jobs set status = 'completed' where id = $1`,
+    [await assignedReview(MANAGER_B)],
+    'trigger',
+  )
+  await refuses(
+    'a manager cannot approve their own job by handing it to staff in the same update',
+    MANAGER,
+    `update public.jobs set status = 'completed', assigned_to = $2 where id = $1`,
+    [await assignedReview(MANAGER), STAFF_A],
+    'trigger',
+  )
+
+  const staffWork = await assignedReview(STAFF_A)
+  const byManager = await as(MANAGER, async () => {
+    try {
+      await db.query(`update public.jobs set status = 'completed' where id = $1`, [staffWork])
+      return (await db.query(`select status from public.jobs where id = $1`, [staffWork])).rows[0].status
+    } catch (e) {
+      return e.message.split('\n')[0]
+    }
+  })
+  report("a manager approves a staff member's job", byManager === 'completed', byManager)
+
+  const managerWork = await assignedReview(MANAGER)
+  const byPartner = await as(PARTNER, async () => {
+    try {
+      await db.query(`update public.jobs set status = 'completed' where id = $1`, [managerWork])
+      return (await db.query(`select status, approved_by from public.jobs where id = $1`, [managerWork])).rows[0]
+    } catch (e) {
+      return { status: e.message.split('\n')[0] }
+    }
+  })
+  report(
+    "a partner approves a manager's job",
+    byPartner.status === 'completed' && byPartner.approved_by === PARTNER,
+    byPartner.status,
+  )
 
   await refuses(
     'a signed-in manager cannot create a job already completed',

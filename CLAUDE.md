@@ -290,8 +290,12 @@ Established so far:
   sign-in is "case-sensitive", it is almost always the password.
 - **Clients have several categories**, not one. Most carry more than one line of
   work.
-- **Self-approval is not blocked.** A manager assigned a job can approve their own
-  work. Whether the firm wants maker-checker separation is an open question.
+- **Who approves whom.** A manager approves staff work. A manager's job — their
+  own or another manager's — is approved by a partner. A partner can approve
+  anybody's, their own included. `jobs_guard` checks the old and new assignee, so
+  reassigning and approving in one update does not get round it; reassigning to
+  staff in one update and approving in the next would, and is visible in the job's
+  history rather than prevented.
 - **Staff status transitions**, as implemented in `public.jobs_guard()`:
   `not_started → in_progress`, `in_progress ⇄ on_hold`, `in_progress → review`,
   `on_hold → review`, `rework → in_progress`. The brief wrote this as a chain, so
