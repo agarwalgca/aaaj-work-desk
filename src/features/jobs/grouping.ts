@@ -7,7 +7,7 @@ import { CLOSED_STATUSES, type Job } from '../../lib/types'
  */
 export type DueGroup = 'overdue' | 'today' | 'this_week' | 'later' | 'no_date'
 
-export const DUE_GROUP_ORDER: DueGroup[] = ['overdue', 'today', 'this_week', 'later', 'no_date']
+const DUE_GROUP_ORDER: DueGroup[] = ['overdue', 'today', 'this_week', 'later', 'no_date']
 
 export const DUE_GROUP_LABEL: Record<DueGroup, string> = {
   overdue: 'Overdue',
@@ -32,6 +32,16 @@ export const isOpen = (job: Pick<Job, 'status'>) => !CLOSED_STATUSES.includes(jo
 
 export function isOverdue(job: Pick<Job, 'status' | 'due_date'>, today: Date): boolean {
   return isOpen(job) && dueGroup(job.due_date, today) === 'overdue'
+}
+
+/** Open jobs per client or per person, counted once for a list rather than once per row. */
+export function countOpenBy(jobs: Job[], key: 'client_id' | 'assigned_to'): Map<string, number> {
+  const counts = new Map<string, number>()
+  for (const job of jobs) {
+    const id = job[key]
+    if (id && isOpen(job)) counts.set(id, (counts.get(id) ?? 0) + 1)
+  }
+  return counts
 }
 
 /**

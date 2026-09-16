@@ -5,7 +5,7 @@ import { supabase } from '../../lib/supabase'
 import type { Job } from '../../lib/types'
 import { useSyncState } from '../../lib/sync/state'
 
-export type SearchHit = { job: Job; clientCode: string; clientName: string }
+type SearchHit = { job: Job; clientCode: string; clientName: string }
 
 /**
  * Two searches wearing one field.

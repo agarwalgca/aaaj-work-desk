@@ -45,19 +45,23 @@ async function enqueue(
   })
 }
 
-/** Fields the server owns. Sending them back would only invite a conflict. */
+/**
+ * Fields the server owns. Sending them back would only invite a conflict, and
+ * approved_by / approved_at belong to the jobs_guard trigger — a client sending
+ * them is exactly the forgery the trigger refuses.
+ */
+const SERVER_OWNED = new Set([
+  'id',
+  'created_at',
+  'updated_at',
+  'started_at',
+  'completed_at',
+  'approved_by',
+  'approved_at',
+])
+
 function scrub(patch: Record<string, unknown>) {
-  // approved_by and approved_at belong to the jobs_guard trigger. A client sending
-  // them would be ignored at best, and is exactly the forgery the trigger refuses.
-  const { id, created_at, updated_at, started_at, completed_at, approved_by, approved_at, ...rest } = patch
-  void id
-  void created_at
-  void updated_at
-  void started_at
-  void completed_at
-  void approved_by
-  void approved_at
-  return rest
+  return Object.fromEntries(Object.entries(patch).filter(([key]) => !SERVER_OWNED.has(key)))
 }
 
 type NewJob = Omit<
@@ -177,26 +181,6 @@ export async function addComment(jobId: string, authorId: string, body: string):
   return id
 }
 
-/** True while anything this person did is still only on this device. */
-export async function pendingCount() {
-  return db.outbox.where('state').equals('pending').count()
-}
-
-export async function failedCount() {
-  return db.outbox.where('state').equals('failed').count()
-}
-
-/** Has a specific row reached Supabase yet? Drives the per-action indicator. */
-export async function isRowPending(rowId: string) {
-  return (await db.outbox.where('row_id').equals(rowId).count()) > 0
-}
-
-/** Oldest thing still waiting, for the "queued since yesterday" warning. */
-export async function oldestPendingAt(): Promise<string | null> {
-  const oldest = await db.outbox.where('state').equals('pending').first()
-  return oldest?.queued_at ?? null
-}
-
 // ---------------------------------------------------------------------------
 // Clients and people. Same pattern: local first, queue second. Whether the caller
 // is actually allowed to do any of this is Postgres's decision, not this file's —
@@ -271,7 +255,7 @@ export async function updateJobTemplate(id: string, patch: Partial<JobTemplate>)
   })
 }
 
-export type Generated = { created: number; skipped: number }
+type Generated = { created: number; skipped: number }
 
 /**
  * Turn templates into jobs for one period.

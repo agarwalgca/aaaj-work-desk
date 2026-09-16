@@ -1,5 +1,5 @@
-import type { Job } from '../types'
-import { CLOSED_STATUSES } from '../types'
+import { financialYearOf } from '../../features/recurring/periods'
+import { CLOSED_STATUSES, type Job } from '../types'
 
 /**
  * The cache window, bounded by the state of a job rather than its age.
@@ -15,8 +15,7 @@ import { CLOSED_STATUSES } from '../types'
 
 /** 1 April of the financial year `on` falls in. */
 export function financialYearStart(on: Date): Date {
-  const year = on.getMonth() >= 3 ? on.getFullYear() : on.getFullYear() - 1
-  return new Date(year, 3, 1)
+  return new Date(financialYearOf(on), 3, 1)
 }
 
 /** Earliest completion date still worth keeping: 1 April of the previous FY. */

@@ -7,9 +7,9 @@
  * it is a job filed against the wrong quarter.
  */
 
+// Type-only imports, on purpose: scripts/verify-sql.mjs loads this file under
+// plain Node, which cannot resolve an extensionless import of another module.
 import type { Frequency } from '../../lib/types'
-
-export type { Frequency }
 
 export const FREQUENCY_LABEL: Record<Frequency, string> = {
   monthly: 'Monthly',
@@ -33,7 +33,11 @@ export type Period = {
   end: Date
 }
 
-/** The financial year a date falls in, named by its starting calendar year. */
+/**
+ * The financial year a date falls in, named by its starting calendar year:
+ * 31 March 2026 is in 2025, 1 April 2026 is in 2026. The one place this rule is
+ * written in TypeScript — the sync cache window reads it from here too.
+ */
 export function financialYearOf(on: Date): number {
   return on.getMonth() >= 3 ? on.getFullYear() : on.getFullYear() - 1
 }
@@ -138,16 +142,4 @@ export function dueDateFor(periodEnd: Date, day: number, monthsAfter: number): s
 
   const month = String(target.getMonth() + 1).padStart(2, '0')
   return `${target.getFullYear()}-${month}-${String(safeDay).padStart(2, '0')}`
-}
-
-/** The rule as a sentence, for the form: "Due on the 20th, 1 month after the period ends." */
-export function describeDueRule(day: number | null, monthsAfter: number | null): string {
-  if (day === null) return 'No date set automatically'
-  const ordinal =
-    day % 10 === 1 && day !== 11 ? 'st' : day % 10 === 2 && day !== 12 ? 'nd' : day % 10 === 3 && day !== 13 ? 'rd' : 'th'
-  const when =
-    !monthsAfter ? 'in the month the period ends'
-    : monthsAfter === 1 ? 'the month after the period ends'
-    : `${monthsAfter} months after the period ends`
-  return `The ${day}${ordinal} ${when}`
 }

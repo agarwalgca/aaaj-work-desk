@@ -33,7 +33,7 @@ async function cycle(reason: string) {
 
   try {
     state().set({ phase: 'pushing', lastError: null })
-    const flushed = await flushOutbox()
+    await flushOutbox()
 
     state().set({ phase: 'pulling' })
     const { missing } = await pullAll()
@@ -43,7 +43,6 @@ async function cycle(reason: string) {
       lastSyncedAt: new Date().toISOString(),
       missingTables: missing,
     })
-    void flushed
   } catch (cause) {
     state().set({
       phase: 'idle',

@@ -12,7 +12,6 @@ import { recentPeriods } from '../recurring/periods'
  */
 export type PeriodType = Frequency | 'custom'
 
-
 /** How far back to offer, by shape. Just over a year of months, two of quarters. */
 export const PERIODS_OFFERED: Record<Frequency, number> = {
   monthly: 14,

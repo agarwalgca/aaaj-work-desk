@@ -3,7 +3,7 @@
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 /** Midnight local, which is what a `date` column means to a person. */
-export function startOfDay(on: Date): Date {
+function startOfDay(on: Date): Date {
   return new Date(on.getFullYear(), on.getMonth(), on.getDate())
 }
 
@@ -38,9 +38,4 @@ export function dueLabel(dueDate: string | null, today: Date): string {
   if (days === -1) return '1 day late'
   if (days < 0) return `${-days} days late`
   return `In ${days} days`
-}
-
-export function todayISO(on = new Date()): string {
-  const d = startOfDay(on)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }

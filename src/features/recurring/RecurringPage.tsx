@@ -9,8 +9,9 @@ import { TextField } from '../../components/TextField'
 import { Textarea } from '../../components/Textarea'
 import { db } from '../../lib/db'
 import { useCategories } from '../categories/useCategories'
+import { PRIORITY_OPTIONS } from '../../lib/labels'
 import { createJobTemplate, updateJobTemplate } from '../../lib/sync/outbox'
-import type { Frequency, JobCategory, JobPriority, JobTemplate } from '../../lib/types'
+import type { Client, Frequency, JobCategory, JobPriority, JobTemplate, Profile } from '../../lib/types'
 import { personName, useLookups } from '../jobs/useJobData'
 import { GeneratePanel } from './GeneratePanel'
 import { ScheduleStatus } from './ScheduleStatus'
@@ -111,9 +112,6 @@ export function RecurringPage() {
   )
 }
 
-type ClientOption = { id: string; code: string; name: string }
-type PersonOption = { id: string; full_name: string; username: string }
-
 function TemplateForm({
   template,
   clients,
@@ -123,8 +121,8 @@ function TemplateForm({
 }: {
   categoryOptions: Array<{ value: string; label: string }>
   template?: JobTemplate
-  clients: ClientOption[]
-  people: PersonOption[]
+  clients: Client[]
+  people: Profile[]
   onDone: () => void
 }) {
   const [form, setForm] = useState({
@@ -199,12 +197,7 @@ function TemplateForm({
         label="Priority"
         value={form.priority}
         onChange={(e) => set({ priority: e.target.value as JobPriority })}
-        options={[
-          { value: 'low', label: 'Low' },
-          { value: 'normal', label: 'Normal' },
-          { value: 'high', label: 'High' },
-          { value: 'urgent', label: 'Urgent' },
-        ]}
+        options={PRIORITY_OPTIONS}
       />
 
       <Select
@@ -213,7 +206,7 @@ function TemplateForm({
         onChange={(e) => set({ assigned_to: e.target.value })}
         options={[
           { value: '', label: 'Unassigned' },
-          ...people.map((p) => ({ value: p.id, label: p.full_name || p.username })),
+          ...people.map((p) => ({ value: p.id, label: personName(p) })),
         ]}
       />
       <Select
@@ -222,7 +215,7 @@ function TemplateForm({
         onChange={(e) => set({ reviewer_id: e.target.value })}
         options={[
           { value: '', label: 'None' },
-          ...people.map((p) => ({ value: p.id, label: p.full_name || p.username })),
+          ...people.map((p) => ({ value: p.id, label: personName(p) })),
         ]}
       />
 

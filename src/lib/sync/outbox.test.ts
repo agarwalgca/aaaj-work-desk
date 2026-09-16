@@ -2,14 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { db } from '../db'
 import type { Job, JobTemplate } from '../types'
 import { backoffMs, isPermanent } from './flush'
-import {
-  addComment,
-  changeJobStatus,
-  createJob,
-  generateJobsForPeriod,
-  pendingCount,
-  updateJob,
-} from './outbox'
+import { addComment, changeJobStatus, createJob, generateJobsForPeriod, updateJob } from './outbox'
 
 const JOB: Job = {
   id: 'job-1',
@@ -84,7 +77,7 @@ describe('writing offline', () => {
       'update jobs',
       'insert job_comments',
     ])
-    expect(await pendingCount()).toBe(6)
+    expect(await db.outbox.count()).toBe(6)
   })
 
   it('never sends back a column the server owns', async () => {
@@ -98,7 +91,7 @@ describe('writing offline', () => {
   it('records a comment against the job before it has been sent', async () => {
     const id = await addComment('job-1', 'staff-1', 'Client has not sent the 2B yet.')
     expect((await db.job_comments.get(id))?.body).toBe('Client has not sent the 2B yet.')
-    expect(await pendingCount()).toBe(1)
+    expect(await db.outbox.count()).toBe(1)
   })
 })
 

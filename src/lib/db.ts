@@ -46,18 +46,18 @@ class WorkDeskDB extends Dexie {
     // Free-text that has been typed but not sent. Local only, never pushed.
     this.version(2).stores({ drafts: 'key, updated_at' })
 
+    // Recurring work. Only partners and managers ever sync these.
+    this.version(3).stores({
+      job_templates: 'id, client_id, frequency, is_active, updated_at',
+      jobs: 'id, assigned_to, reviewer_id, client_id, status, due_date, completed_at, updated_at, template_id, [assigned_to+status], [template_id+period_key]',
+    })
+
     // Categories the firm manages, and which of them each client has. `*categories`
     // is a multi-entry index, so "every client with TDS work" is a lookup rather
     // than a scan of every client.
     this.version(4).stores({
       job_categories: 'id, slug, is_active, updated_at',
       clients: 'id, code, is_active, updated_at, *categories',
-    })
-
-    // Recurring work. Only partners and managers ever sync these.
-    this.version(3).stores({
-      job_templates: 'id, client_id, frequency, is_active, updated_at',
-      jobs: 'id, assigned_to, reviewer_id, client_id, status, due_date, completed_at, updated_at, template_id, [assigned_to+status], [template_id+period_key]',
     })
   }
 }
@@ -69,47 +69,17 @@ export const db = new WorkDeskDB()
  * the phone must not find the last one's client list sitting in it.
  */
 export async function clearLocalData() {
-  await db.transaction(
-    'rw',
-    [
-      db.profiles,
-      db.clients,
-      db.jobs,
-      db.job_templates,
-      db.job_categories,
-      db.job_status_history,
-      db.job_comments,
-      db.outbox,
-      db.cursors,
-      db.drafts,
-    ],
-    async () => {
-      await Promise.all([
-        db.profiles.clear(),
-        db.clients.clear(),
-        db.jobs.clear(),
-        db.job_templates.clear(),
-        db.job_categories.clear(),
-        db.job_status_history.clear(),
-        db.job_comments.clear(),
-        db.outbox.clear(),
-        db.cursors.clear(),
-        db.drafts.clear(),
-      ])
-    },
-  )
+  await db.transaction('rw', db.tables, () => Promise.all(db.tables.map((table) => table.clear())))
 }
 
 /** Row counts plus whatever the browser will admit about its storage budget. */
 export async function cacheStats() {
-  const [profiles, clients, jobs, history, comments, pending, failed] = await Promise.all([
+  const [profiles, clients, jobs, history, comments] = await Promise.all([
     db.profiles.count(),
     db.clients.count(),
     db.jobs.count(),
     db.job_status_history.count(),
     db.job_comments.count(),
-    db.outbox.where('state').equals('pending').count(),
-    db.outbox.where('state').equals('failed').count(),
   ])
 
   const estimate = await navigator.storage?.estimate?.().catch(() => undefined)
@@ -117,7 +87,6 @@ export async function cacheStats() {
   return {
     rows: { profiles, clients, jobs, history, comments },
     total: profiles + clients + jobs + history + comments,
-    outbox: { pending, failed },
     usage: estimate?.usage ?? null,
     quota: estimate?.quota ?? null,
   }

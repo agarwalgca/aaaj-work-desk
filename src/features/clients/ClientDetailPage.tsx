@@ -4,6 +4,7 @@ import { useParams } from 'react-router'
 import { useMe } from '../../app/useMe'
 import { Button } from '../../components/Button'
 import { EmptyState } from '../../components/EmptyState'
+import { Field } from '../../components/Field'
 import { SkeletonPanel } from '../../components/Skeleton'
 import { PageHeader } from '../../components/PageHeader'
 import { db } from '../../lib/db'
@@ -116,14 +117,5 @@ export function ClientDetailPage() {
         </>
       )}
     </section>
-  )
-}
-
-function Field({ term, value, mono }: { term: string; value: string; mono?: boolean }) {
-  return (
-    <div>
-      <dt className="text-ink-soft text-[11px] tracking-wide uppercase">{term}</dt>
-      <dd className={mono ? 'font-mono' : ''}>{value}</dd>
-    </div>
   )
 }

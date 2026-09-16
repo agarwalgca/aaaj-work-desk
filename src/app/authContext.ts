@@ -5,6 +5,7 @@ export type AuthState = {
   /** 'loading' only until the persisted session has been read from storage. */
   status: 'loading' | 'signed-in' | 'signed-out'
   session: Session | null
+  /** Asks first while the outbox is not empty, and clears the device on the way out. */
   signOut: () => Promise<void>
 }
 

@@ -9,7 +9,7 @@ import { db } from '../../lib/db'
 import { ROLE_LABEL } from '../../lib/labels'
 import { updateProfile } from '../../lib/sync/outbox'
 import type { Profile, UserRole } from '../../lib/types'
-import { isOpen } from '../jobs/grouping'
+import { countOpenBy } from '../jobs/grouping'
 import { personName } from '../jobs/useJobData'
 import { AddEmployee } from './AddEmployee'
 
@@ -21,8 +21,7 @@ export function TeamPage() {
   const jobs = useLiveQuery(() => db.jobs.toArray(), [], [])
   const [editing, setEditing] = useState<string | null>(null)
 
-  const openFor = (uid: string) =>
-    jobs.filter((job) => job.assigned_to === uid && isOpen(job)).length
+  const openByPerson = countOpenBy(jobs, 'assigned_to')
 
   const ordered = [...people].sort(
     (a, b) => ROLES.indexOf(a.role) - ROLES.indexOf(b.role) || personName(a).localeCompare(personName(b)),
@@ -57,7 +56,7 @@ export function TeamPage() {
                   Deactivated
                 </span>
               )}
-              <span className="text-ink-soft font-mono text-xs">{openFor(person.id)} open</span>
+              <span className="text-ink-soft font-mono text-xs">{openByPerson.get(person.id) ?? 0} open</span>
               <SavedIndicator rowId={person.id} />
 
               <button

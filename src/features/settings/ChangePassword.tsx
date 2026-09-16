@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Button } from '../../components/Button'
+import { Notice } from '../../components/Notice'
 import { TextField } from '../../components/TextField'
 import { supabase } from '../../lib/supabase'
 import { useSyncState } from '../../lib/sync/state'
@@ -64,9 +65,9 @@ export function ChangePassword() {
       </div>
 
       {error && (
-        <p className="rounded-control border-status-cancelled/30 bg-status-cancelled/5 text-status-cancelled mt-3 border px-3 py-2 text-sm">
+        <Notice tone="error" className="mt-3">
           {error}
-        </p>
+        </Notice>
       )}
       {done && <p className="text-status-completed mt-3 text-sm">Password changed. Use it next time you sign in.</p>}
       {!online && <p className="text-ink-soft mt-3 text-xs">Changing your password needs a connection.</p>}

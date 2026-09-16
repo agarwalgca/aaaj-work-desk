@@ -3,17 +3,9 @@ import { db } from '../../lib/db'
 import type { Client, Profile } from '../../lib/types'
 
 /** Lookup maps, so a row can name its client without a query per row. */
-export function useClients() {
-  return useLiveQuery(() => db.clients.toArray(), [], [] as Client[])
-}
-
-export function useProfiles() {
-  return useLiveQuery(() => db.profiles.toArray(), [], [] as Profile[])
-}
-
 export function useLookups() {
-  const clients = useClients()
-  const profiles = useProfiles()
+  const clients = useLiveQuery(() => db.clients.toArray(), [], [] as Client[])
+  const profiles = useLiveQuery(() => db.profiles.toArray(), [], [] as Profile[])
   return {
     clients,
     profiles,
@@ -31,8 +23,10 @@ export function useAllJobs() {
 export function useMyJobs(uid: string | undefined) {
   return useLiveQuery(async () => {
     if (!uid) return []
-    const mine = await db.jobs.where('assigned_to').equals(uid).toArray()
-    const reviewing = await db.jobs.where('reviewer_id').equals(uid).toArray()
+    const [mine, reviewing] = await Promise.all([
+      db.jobs.where('assigned_to').equals(uid).toArray(),
+      db.jobs.where('reviewer_id').equals(uid).toArray(),
+    ])
     const seen = new Set(mine.map((j) => j.id))
     return [...mine, ...reviewing.filter((j) => !seen.has(j.id))]
   }, [uid])

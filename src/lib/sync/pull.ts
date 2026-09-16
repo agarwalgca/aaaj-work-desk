@@ -21,9 +21,17 @@ class MissingTable extends Error {
 /** The columns the pull itself reasons about; the rest travels through untouched. */
 type SyncRow = { id: string; updated_at: string; deleted_at: string | null }
 
+// Every synced table is keyed by a string id; the specific row type does not
+// matter here, and naming it would mean five near-identical branches.
+const storeFor = (table: SyncedTable) => db[table] as unknown as Table<SyncRow, string>
+
 /** Only jobs are bounded; the others are small enough to hold whole. */
 const jobWindowFilter = (now: Date) =>
   `status.not.in.(completed,cancelled),completed_at.gte.${cacheWindowStartISO(now)}`
+
+/** Does this row belong on the device? A tombstone never does; a job also has a window. */
+const belongsHere = (table: SyncedTable, row: SyncRow, now: Date) =>
+  row.deleted_at === null && (table !== 'jobs' || isInCacheWindow(row as unknown as Job, now))
 
 async function readCursor(table: SyncedTable): Promise<Cursor> {
   return (
@@ -57,9 +65,9 @@ async function pullTable(table: SyncedTable, now: Date): Promise<number> {
 
     const { data, error } = await query
     // A table the database has not got yet. This happens whenever a deploy lands
-    // before its migration is run, and it must not take the other five tables
-    // down with it — every screen reads from Dexie, so a partial sync is worth
-    // far more than none. It heals itself the moment the migration is applied.
+    // before its migration is run, and it must not take the other tables down
+    // with it — every screen reads from Dexie, so a partial sync is worth far
+    // more than none. It heals itself the moment the migration is applied.
     if (error?.code === MISSING_TABLE) throw new MissingTable(table)
 
     // PostgrestError is a plain object, not an Error. Thrown as-is it reaches the
@@ -68,25 +76,13 @@ async function pullTable(table: SyncedTable, now: Date): Promise<number> {
     if (!data || data.length === 0) break
 
     const rows = data as unknown as SyncRow[]
+    const keep = rows.filter((row) => belongsHere(table, row, now))
+    const drop = rows.filter((row) => !belongsHere(table, row, now)).map((row) => row.id)
 
-    const live = rows.filter((row) => row.deleted_at === null)
-    const gone = rows.filter((row) => row.deleted_at !== null).map((row) => row.id)
-
-    const keep =
-      table === 'jobs'
-        ? live.filter((row) => isInCacheWindow(row as unknown as Job, now))
-        : live
-    const aged =
-      table === 'jobs'
-        ? live.filter((row) => !isInCacheWindow(row as unknown as Job, now)).map((row) => row.id)
-        : []
-
-    // Every synced table is keyed by a string id; the specific row type does not
-    // matter here, and naming it would mean five near-identical branches.
-    const store = db[table] as unknown as Table<SyncRow, string>
+    const store = storeFor(table)
     await db.transaction('rw', store, async () => {
       if (keep.length) await store.bulkPut(keep)
-      if (gone.length || aged.length) await store.bulkDelete([...gone, ...aged])
+      if (drop.length) await store.bulkDelete(drop)
     })
 
     pulled += rows.length
@@ -101,88 +97,69 @@ async function pullTable(table: SyncedTable, now: Date): Promise<number> {
 }
 
 /**
+ * Tables the reconcile sweep covers. `optional` marks the ones that arrived in
+ * later migrations: a database without them yet answers "no such table", and
+ * that is skipped rather than fatal — sweeping on it would delete every local
+ * row for want of a server answer.
+ */
+const SWEPT: Array<{ table: SyncedTable; optional: boolean }> = [
+  { table: 'jobs', optional: false },
+  { table: 'clients', optional: false },
+  { table: 'profiles', optional: false },
+  { table: 'job_templates', optional: true },
+  { table: 'job_categories', optional: true },
+]
+
+/**
  * Delete local rows the server no longer offers.
  *
  * An incremental pull can only ever add or update. It cannot tell a device that a
  * row has left its view — and rows leave constantly. A manager reassigns a job away
  * from a member of staff and it simply stops matching their filtered read; nothing
  * is deleted, no tombstone is written, and without this the row would sit on their
- * phone for good. One id-only query per table settles it: whatever the server does
- * not list, this device should not be holding.
+ * phone for good. A manager demoted to staff stops seeing templates the same way.
+ * One id-only query per table settles it: whatever the server does not list, this
+ * device should not be holding.
  */
 async function reconcile(now: Date) {
-  const [jobIds, clientIds, profileIds, templateIds, categoryIds] = await Promise.all([
-    supabase.from('jobs').select('id').is('deleted_at', null).or(jobWindowFilter(now)),
-    supabase.from('clients').select('id').is('deleted_at', null),
-    supabase.from('profiles').select('id').is('deleted_at', null),
-    supabase.from('job_templates').select('id').is('deleted_at', null),
-    supabase.from('job_categories').select('id').is('deleted_at', null),
-  ])
+  const answers = await Promise.all(
+    SWEPT.map(({ table }) => {
+      const query = supabase.from(table).select('id').is('deleted_at', null)
+      return table === 'jobs' ? query.or(jobWindowFilter(now)) : query
+    }),
+  )
 
-  for (const result of [jobIds, clientIds, profileIds]) {
-    if (result.error) throw new Error(`reconcile: ${result.error.message}`)
-  }
-  // Same reasoning as the pull: a table that is not there yet is skipped, not
-  // fatal. Sweeping it would delete every local row for want of a server answer.
-  if (templateIds.error && templateIds.error.code !== MISSING_TABLE) {
-    throw new Error(`reconcile: ${templateIds.error.message}`)
-  }
-  const sweepTemplates = !templateIds.error
-  if (categoryIds.error && categoryIds.error.code !== MISSING_TABLE) {
-    throw new Error(`reconcile: ${categoryIds.error.message}`)
-  }
-  const sweepCategories = !categoryIds.error
-  const visibleCategories = new Set((categoryIds.data ?? []).map((r) => r.id))
-
-  const visibleJobs = new Set((jobIds.data ?? []).map((r) => r.id))
-  const visibleClients = new Set((clientIds.data ?? []).map((r) => r.id))
-  const visibleProfiles = new Set((profileIds.data ?? []).map((r) => r.id))
-  const visibleTemplates = new Set((templateIds.data ?? []).map((r) => r.id))
+  const visible = new Map<SyncedTable, Set<string>>()
+  SWEPT.forEach(({ table, optional }, i) => {
+    const { data, error } = answers[i]
+    if (error) {
+      if (optional && error.code === MISSING_TABLE) return
+      throw new Error(`reconcile: ${error.message}`)
+    }
+    visible.set(table, new Set((data ?? []).map((row) => row.id)))
+  })
 
   await db.transaction(
     'rw',
     [db.jobs, db.clients, db.profiles, db.job_templates, db.job_categories, db.job_status_history, db.job_comments],
     async () => {
-      const staleJobs = (await db.jobs.toArray())
-        .filter((j) => !visibleJobs.has(j.id))
-        .map((j) => j.id)
-      if (staleJobs.length) {
-        await db.jobs.bulkDelete(staleJobs)
+      for (const [table, ids] of visible) {
+        const store = storeFor(table)
+        const stale = (await store.toCollection().primaryKeys()).filter((id) => !ids.has(id))
+        if (stale.length === 0) continue
+
+        await store.bulkDelete(stale)
         // History and comments belong to their job and go with it.
-        await db.job_status_history.where('job_id').anyOf(staleJobs).delete()
-        await db.job_comments.where('job_id').anyOf(staleJobs).delete()
-      }
-
-      const staleClients = (await db.clients.toArray())
-        .filter((c) => !visibleClients.has(c.id))
-        .map((c) => c.id)
-      if (staleClients.length) await db.clients.bulkDelete(staleClients)
-
-      const staleProfiles = (await db.profiles.toArray())
-        .filter((p) => !visibleProfiles.has(p.id))
-        .map((p) => p.id)
-      if (staleProfiles.length) await db.profiles.bulkDelete(staleProfiles)
-
-      // A manager demoted to staff stops seeing templates entirely, and the rows
-      // have to leave with the permission.
-      if (sweepTemplates) {
-        const staleTemplates = (await db.job_templates.toArray())
-          .filter((t) => !visibleTemplates.has(t.id))
-          .map((t) => t.id)
-        if (staleTemplates.length) await db.job_templates.bulkDelete(staleTemplates)
-      }
-
-      if (sweepCategories) {
-        const staleCategories = (await db.job_categories.toArray())
-          .filter((c) => !visibleCategories.has(c.id))
-          .map((c) => c.id)
-        if (staleCategories.length) await db.job_categories.bulkDelete(staleCategories)
+        if (table === 'jobs') {
+          await db.job_status_history.where('job_id').anyOf(stale).delete()
+          await db.job_comments.where('job_id').anyOf(stale).delete()
+        }
       }
     },
   )
 }
 
-export type PullResult = { pulled: number; missing: SyncedTable[] }
+type PullResult = { pulled: number; missing: SyncedTable[] }
 
 /** Everything, in dependency order, then the reconcile sweep. */
 export async function pullAll(now = new Date()): Promise<PullResult> {

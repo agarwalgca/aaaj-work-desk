@@ -3,11 +3,13 @@ import { useNavigate, useParams } from 'react-router'
 import { useMe } from '../../app/useMe'
 import { Button } from '../../components/Button'
 import { EmptyState } from '../../components/EmptyState'
+import { Notice } from '../../components/Notice'
 import { SkeletonPanel } from '../../components/Skeleton'
 import { PageHeader } from '../../components/PageHeader'
 import { Select } from '../../components/Select'
 import { Textarea } from '../../components/Textarea'
 import { TextField } from '../../components/TextField'
+import { PRIORITY_OPTIONS } from '../../lib/labels'
 import { createJob, createJobTemplate, updateJob } from '../../lib/sync/outbox'
 import type { Category, Frequency, JobCategory, JobPriority } from '../../lib/types'
 import { useCategories } from '../categories/useCategories'
@@ -181,7 +183,7 @@ function JobForm({
       due_date: form.due_date || null,
     }
 
-    if (editing && jobId) {
+    if (jobId) {
       await updateJob(jobId, shape)
       navigate(`/jobs/${jobId}`, { replace: true })
       return
@@ -218,7 +220,7 @@ function JobForm({
 
     if (andAnother) {
       // Keep the things that repeat across a batch, clear the things that do not.
-      setForm({ ...form, title: '', description: '', assigned_to: form.assigned_to })
+      setForm({ ...form, title: '', description: '' })
       setJustSaved(form.title.trim())
       return
     }
@@ -230,10 +232,10 @@ function JobForm({
       <PageHeader title={editing ? 'Edit job' : 'New job'} />
 
       {justSaved && (
-        <p className="rounded-control border-rule bg-brass-wash text-ink-soft mb-4 border px-3 py-2 text-sm">
+        <Notice className="mb-4">
           Saved “{justSaved}”. The client, category and period are still set — change the title and
           save the next one.
-        </p>
+        </Notice>
       )}
 
       <div className="rounded-card border-rule bg-card grid gap-4 border p-4 sm:grid-cols-2">
@@ -322,12 +324,7 @@ function JobForm({
           label="Priority"
           value={form.priority}
           onChange={(e) => set({ priority: e.target.value as JobPriority })}
-          options={[
-            { value: 'low', label: 'Low' },
-            { value: 'normal', label: 'Normal' },
-            { value: 'high', label: 'High' },
-            { value: 'urgent', label: 'Urgent' },
-          ]}
+          options={PRIORITY_OPTIONS}
         />
         <div />
 

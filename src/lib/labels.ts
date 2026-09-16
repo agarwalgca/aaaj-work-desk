@@ -1,6 +1,5 @@
 import type { JobPriority, JobStatus, UserRole } from './types'
 
-
 export const STATUS_LABEL: Record<JobStatus, string> = {
   not_started: 'Not started',
   in_progress: 'In progress',
@@ -17,6 +16,12 @@ export const PRIORITY_LABEL: Record<JobPriority, string> = {
   high: 'High',
   urgent: 'Urgent',
 }
+
+/** Low to urgent, the order a form lists them in. */
+export const PRIORITY_OPTIONS = (Object.keys(PRIORITY_LABEL) as JobPriority[]).map((value) => ({
+  value,
+  label: PRIORITY_LABEL[value],
+}))
 
 export const ROLE_LABEL: Record<UserRole, string> = {
   partner: 'Partner',

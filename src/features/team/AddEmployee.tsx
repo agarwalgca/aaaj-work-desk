@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Button } from '../../components/Button'
+import { Notice } from '../../components/Notice'
 import { Select } from '../../components/Select'
 import { TextField } from '../../components/TextField'
 import { ROLE_LABEL } from '../../lib/labels'
@@ -137,9 +138,9 @@ export function AddEmployee() {
       </div>
 
       {error && (
-        <p className="rounded-control border-status-cancelled/30 bg-status-cancelled/5 text-status-cancelled mt-3 border px-3 py-2 text-sm">
+        <Notice tone="error" className="mt-3">
           {error}
-        </p>
+        </Notice>
       )}
 
       <div className="mt-4 flex flex-wrap items-center gap-2">

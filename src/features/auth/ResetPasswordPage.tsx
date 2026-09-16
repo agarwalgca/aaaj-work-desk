@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { Button } from '../../components/Button'
+import { Notice } from '../../components/Notice'
 import { TextField } from '../../components/TextField'
 import { Wordmark } from '../../components/Wordmark'
 import { supabase } from '../../lib/supabase'
@@ -80,11 +81,7 @@ export function ResetPasswordPage() {
                 onChange={(e) => setConfirm(e.target.value)}
               />
 
-              {error && (
-                <p className="rounded-control border-status-cancelled/30 bg-status-cancelled/5 text-status-cancelled border px-3 py-2 text-sm">
-                  {error}
-                </p>
-              )}
+              {error && <Notice tone="error">{error}</Notice>}
 
               <Button type="submit" disabled={busy}>
                 {busy ? 'Saving…' : 'Save password'}

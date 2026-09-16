@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router'
 import { useMe } from '../../app/useMe'
 import { Button } from '../../components/Button'
 import { EmptyState } from '../../components/EmptyState'
+import { Field } from '../../components/Field'
 import { SkeletonPanel } from '../../components/Skeleton'
 import { SavedIndicator } from '../../components/SavedIndicator'
 import { OverdueMark, PriorityMark, StatusPill } from '../../components/StatusPill'
@@ -177,28 +178,6 @@ export function JobDetailPage() {
         <p className="text-ink-soft mt-4 text-xs">Client details have not synced to this device yet.</p>
       )}
     </section>
-  )
-}
-
-function Field({
-  term,
-  value,
-  mono,
-  note,
-}: {
-  term: string
-  value: string
-  mono?: boolean
-  note?: string
-}) {
-  return (
-    <div>
-      <dt className="text-ink-soft text-[11px] tracking-wide uppercase">{term}</dt>
-      <dd className={mono ? 'font-mono' : ''}>
-        {value}
-        {note && <span className="text-ink-soft ml-2 text-xs">{note}</span>}
-      </dd>
-    </div>
   )
 }
 

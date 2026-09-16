@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { describeDueRule, dueDateFor, periodContaining } from './periods'
+import { dueDateFor, periodContaining } from './periods'
 
 const endOf = (iso: string, freq: Parameters<typeof periodContaining>[1]) =>
   periodContaining(new Date(`${iso}T12:00:00`), freq).end
@@ -33,15 +33,5 @@ describe('dueDateFor', () => {
 
   it('allows a date inside the ending month itself', () => {
     expect(dueDateFor(endOf('2026-08-15', 'monthly'), 25, 0)).toBe('2026-08-25')
-  })
-})
-
-describe('describeDueRule', () => {
-  it('reads like a person would say it', () => {
-    expect(describeDueRule(20, 1)).toBe('The 20th the month after the period ends')
-    expect(describeDueRule(1, 2)).toBe('The 1st 2 months after the period ends')
-    expect(describeDueRule(3, 0)).toBe('The 3rd in the month the period ends')
-    expect(describeDueRule(22, 1)).toBe('The 22nd the month after the period ends')
-    expect(describeDueRule(null, null)).toBe('No date set automatically')
   })
 })

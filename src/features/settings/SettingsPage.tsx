@@ -4,7 +4,7 @@ import { useMe } from '../../app/useMe'
 import { useAuth } from '../../app/authContext'
 import { Button } from '../../components/Button'
 import { PageHeader } from '../../components/PageHeader'
-import { cacheStats, clearLocalData, db } from '../../lib/db'
+import { cacheStats, db } from '../../lib/db'
 import { formatDateTime } from '../../lib/dates'
 import {
   getInstallPrompt,
@@ -12,9 +12,10 @@ import {
   promptInstall,
   subscribeToInstallPrompt,
 } from '../../lib/installPrompt'
-import { syncNow, stopSync } from '../../lib/sync/engine'
+import { syncNow } from '../../lib/sync/engine'
 import { retryFailed } from '../../lib/sync/flush'
 import { useSyncState } from '../../lib/sync/state'
+import { FailedEntries } from '../sync/FailedEntries'
 import { ChangePassword } from './ChangePassword'
 
 export function SettingsPage() {
@@ -31,20 +32,6 @@ export function SettingsPage() {
 
   const pending = queue.filter((e) => e.state === 'pending')
   const failed = queue.filter((e) => e.state === 'failed')
-
-  async function signOutSafely() {
-    if (
-      queue.length > 0 &&
-      !window.confirm(
-        `${queue.length} change${queue.length === 1 ? '' : 's'} on this device ${queue.length === 1 ? 'has' : 'have'} not reached the server. Signing out discards them. Continue?`,
-      )
-    ) {
-      return
-    }
-    stopSync()
-    await clearLocalData()
-    await signOut()
-  }
 
   return (
     <section className="max-w-2xl">
@@ -118,18 +105,7 @@ export function SettingsPage() {
           )}
         </div>
 
-        {failed.length > 0 && (
-          <ul className="mt-3 grid gap-1">
-            {failed.map((entry) => (
-              <li key={entry.seq} className="rounded-control border-rule border px-2 py-1">
-                <div className="font-mono text-[11px]">
-                  {entry.op} {entry.table_name}
-                </div>
-                <p className="text-ink-soft text-xs">{entry.last_error}</p>
-              </li>
-            ))}
-          </ul>
-        )}
+        {failed.length > 0 && <FailedEntries entries={failed} className="mt-3" />}
       </Panel>
 
       <Panel title="This device">
@@ -165,7 +141,7 @@ export function SettingsPage() {
             signing out, or they are lost.
           </p>
         )}
-        <Button variant="secondary" onClick={() => void signOutSafely()}>
+        <Button variant="secondary" onClick={() => void signOut()}>
           Sign out
         </Button>
       </Panel>

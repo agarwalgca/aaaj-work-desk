@@ -16,7 +16,7 @@ import {
   SettingsIcon,
   TeamIcon,
 } from '../components/icons'
-import { clearLocalData, db } from '../lib/db'
+import { db } from '../lib/db'
 import { startSync, stopSync } from '../lib/sync/engine'
 import type { UserRole } from '../lib/types'
 import { useAuth } from './authContext'
@@ -74,21 +74,6 @@ export function Shell() {
   const inBar = visible.filter((item) => item.mobile).slice(0, 3)
   const behindMore = visible.filter((item) => !inBar.includes(item))
 
-  async function signOutSafely() {
-    if (
-      pending > 0 &&
-      !window.confirm(
-        `${pending} change${pending === 1 ? '' : 's'} on this device ${pending === 1 ? 'has' : 'have'} not reached the server yet. ` +
-          'Signing out now discards them. Continue?',
-      )
-    ) {
-      return
-    }
-    stopSync()
-    await clearLocalData()
-    await signOut()
-  }
-
   return (
     <div className="min-h-dvh">
       <header className="bg-ink sticky top-0 z-20 flex h-14 items-center gap-3 px-3 md:gap-4 md:px-4">
@@ -115,7 +100,7 @@ export function Shell() {
           me={me}
           email={session?.user.email ?? ''}
           pending={pending}
-          onSignOut={() => void signOutSafely()}
+          onSignOut={() => void signOut()}
         />
       </header>
 
@@ -195,21 +180,20 @@ export function Shell() {
       )}
 
       <nav className="border-rule bg-card fixed inset-x-0 bottom-0 z-20 grid grid-cols-4 border-t pb-[env(safe-area-inset-bottom)] md:hidden">
-        {inBar
-          .map(({ to, label, Icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              className={({ isActive }) =>
-                `flex flex-col items-center gap-1 py-2 text-[11px] ${
-                  isActive ? 'text-brass font-medium' : 'text-ink-soft'
-                }`
-              }
-            >
-              <Icon />
-              {label}
-            </NavLink>
-          ))}
+        {inBar.map(({ to, label, Icon }) => (
+          <NavLink
+            key={to}
+            to={to}
+            className={({ isActive }) =>
+              `flex flex-col items-center gap-1 py-2 text-[11px] ${
+                isActive ? 'text-brass font-medium' : 'text-ink-soft'
+              }`
+            }
+          >
+            <Icon />
+            {label}
+          </NavLink>
+        ))}
         <button
           type="button"
           onClick={() => setMoreOpen((open) => !open)}

@@ -65,24 +65,19 @@ async function push(entry: OutboxEntry) {
     .lt('updated_at', client_updated_at)
 }
 
-export type FlushResult = { pushed: number; failed: number; deferred: number }
-
 /**
  * Drain in FIFO order and stop at the first entry that could not go through for a
  * transient reason. Order is the point: a job insert followed by two status changes
  * has to arrive in that order or the later writes have nothing to land on.
  */
-export async function flushOutbox(): Promise<FlushResult> {
-  const result: FlushResult = { pushed: 0, failed: 0, deferred: 0 }
+export async function flushOutbox(): Promise<void> {
   const at = new Date().toISOString()
 
   const queue = await db.outbox.where('state').equals('pending').sortBy('seq')
 
   for (const entry of queue) {
-    if (entry.next_attempt_at > at) {
-      result.deferred += 1
-      break
-    }
+    // Still backing off. Everything behind it waits too, or the order is lost.
+    if (entry.next_attempt_at > at) return
 
     let error: { code?: string; message?: string } | null = null
     try {
@@ -95,7 +90,6 @@ export async function flushOutbox(): Promise<FlushResult> {
 
     if (!error) {
       await db.outbox.delete(entry.seq!)
-      result.pushed += 1
       continue
     }
 
@@ -107,7 +101,6 @@ export async function flushOutbox(): Promise<FlushResult> {
         attempts,
         last_error: error.message ?? 'Rejected by the server',
       })
-      result.failed += 1
       continue
     }
 
@@ -116,11 +109,8 @@ export async function flushOutbox(): Promise<FlushResult> {
       last_error: error.message ?? 'Could not reach the server',
       next_attempt_at: new Date(Date.now() + backoffMs(attempts)).toISOString(),
     })
-    result.deferred += 1
-    break
+    return
   }
-
-  return result
 }
 
 /** Manual retry from the sync panel: put failed entries back at the front. */

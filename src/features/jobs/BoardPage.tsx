@@ -4,7 +4,7 @@ import { SkeletonRows } from '../../components/Skeleton'
 import { PageHeader } from '../../components/PageHeader'
 import { Button } from '../../components/Button'
 import { StatusPill } from '../../components/StatusPill'
-import { STATUS_LABEL } from '../../lib/labels'
+import { PRIORITY_OPTIONS, STATUS_LABEL } from '../../lib/labels'
 import { useCategories } from '../categories/useCategories'
 import type { Job, JobStatus } from '../../lib/types'
 import { activeFilterCount, useBoardFilters } from './boardFilters'
@@ -108,13 +108,7 @@ export function BoardPage() {
           label="Priority"
           value={f.priority}
           onChange={(v) => f.set({ priority: v as never })}
-          options={[
-            { value: 'all', label: 'Any priority' },
-            { value: 'urgent', label: 'Urgent' },
-            { value: 'high', label: 'High' },
-            { value: 'normal', label: 'Normal' },
-            { value: 'low', label: 'Low' },
-          ]}
+          options={[{ value: 'all', label: 'Any priority' }, ...[...PRIORITY_OPTIONS].reverse()]}
         />
         <DateFilter label="Due from" value={f.dueFrom} onChange={(v) => f.set({ dueFrom: v })} />
         <DateFilter label="Due to" value={f.dueTo} onChange={(v) => f.set({ dueTo: v })} />

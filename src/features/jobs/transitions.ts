@@ -1,6 +1,6 @@
 import { STAFF_TRANSITIONS, type JobStatus, type UserRole } from '../../lib/types'
 
-export const ALL_STATUSES: JobStatus[] = [
+const ALL_STATUSES: JobStatus[] = [
   'not_started',
   'in_progress',
   'on_hold',

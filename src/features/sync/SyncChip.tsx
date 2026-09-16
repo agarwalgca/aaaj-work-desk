@@ -2,8 +2,9 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { useState } from 'react'
 import { cacheStats, db } from '../../lib/db'
 import { syncNow } from '../../lib/sync/engine'
-import { discardFailed, retryFailed } from '../../lib/sync/flush'
+import { retryFailed } from '../../lib/sync/flush'
 import { useSyncState } from '../../lib/sync/state'
+import { FailedEntries } from './FailedEntries'
 
 /**
  * Aggregate state of the outbox, in the header. The per-action indicators on job
@@ -97,23 +98,7 @@ export function SyncChip() {
                   Retry all
                 </button>
               </div>
-              <ul className="mt-1 space-y-1">
-                {failed.map((entry) => (
-                  <li key={entry.seq} className="rounded-control border-rule border px-2 py-1">
-                    <div className="font-mono text-[11px]">
-                      {entry.op} {entry.table_name}
-                    </div>
-                    <p className="text-ink-soft text-xs">{entry.last_error}</p>
-                    <button
-                      type="button"
-                      onClick={() => void discardFailed(entry.seq!)}
-                      className="text-ink-soft mt-1 text-[11px] underline underline-offset-2"
-                    >
-                      Discard
-                    </button>
-                  </li>
-                ))}
-              </ul>
+              <FailedEntries entries={failed} discardable className="mt-1" />
             </div>
           )}
 

@@ -11,7 +11,7 @@ import { db } from '../../lib/db'
 import { createClient, updateClient } from '../../lib/sync/outbox'
 import type { Category, Client, JobCategory } from '../../lib/types'
 import { useCategories } from '../categories/useCategories'
-import { isOpen } from '../jobs/grouping'
+import { countOpenBy } from '../jobs/grouping'
 
 export function ClientsPage() {
   const me = useMe()
@@ -48,8 +48,7 @@ export function ClientsPage() {
     )
     .sort((a, b) => a.code.localeCompare(b.code))
 
-  const openCount = (clientId: string) =>
-    jobs.filter((job) => job.client_id === clientId && isOpen(job)).length
+  const openByClient = countOpenBy(jobs, 'client_id')
 
   return (
     <section>
@@ -124,7 +123,7 @@ export function ClientsPage() {
                     Inactive
                   </span>
                 )}
-                <span className="text-ink-soft w-14 text-right font-mono text-xs">{openCount(client.id)} open</span>
+                <span className="text-ink-soft w-14 text-right font-mono text-xs">{openByClient.get(client.id) ?? 0} open</span>
               </Link>
             </li>
           ))}
