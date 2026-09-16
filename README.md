@@ -203,6 +203,9 @@ thing that would change if Phase 2 ever adds one.
 | Approve completion | ✓ | ✓      | —     |
 | Team        | ✓       | —       | —     |
 
+On a phone the bar holds three screens and **More** opens the rest — Recurring,
+Categories, Team and Settings, whichever this person may see.
+
 The nav and the controls follow this table, but it is courtesy rather than
 security: every one of these rules is enforced again in Postgres, and the client
 copy exists only so nobody is shown a door that will not open.

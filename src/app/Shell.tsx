@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useEffect, useState } from 'react'
-import { NavLink, Outlet } from 'react-router'
+import { NavLink, Outlet, useLocation } from 'react-router'
 import { GlobalSearch } from '../features/search/GlobalSearch'
 import { AvatarMenu } from '../features/settings/AvatarMenu'
 import { StaleWritesBanner } from '../features/sync/StaleWritesBanner'
@@ -57,6 +57,8 @@ export function Shell() {
   const me = useMe()
   const pending = useLiveQuery(() => db.outbox.count(), [], 0)
   const [searchOpen, setSearchOpen] = useState(false)
+  const [moreOpen, setMoreOpen] = useState(false)
+  const { pathname } = useLocation()
 
   // The engine belongs to a signed-in session and nothing else: mounted here, it
   // starts when the shell does and is torn down the moment the session ends.
@@ -66,6 +68,11 @@ export function Shell() {
   }, [])
 
   const visible = NAV.filter((item) => !item.roles || (me && item.roles.includes(me.role)))
+  // The phone bar holds three; everything else this person may see is behind More,
+  // which is a menu and not a shortcut to Settings — Team and Categories were
+  // unreachable on a phone while it was one.
+  const inBar = visible.filter((item) => item.mobile).slice(0, 3)
+  const behindMore = visible.filter((item) => !inBar.includes(item))
 
   async function signOutSafely() {
     if (
@@ -154,10 +161,41 @@ export function Shell() {
         </main>
       </div>
 
+      {moreOpen && (
+        <div
+          className="animate-fade fixed inset-0 z-30 flex items-end bg-black/30 md:hidden"
+          onClick={() => setMoreOpen(false)}
+          role="presentation"
+        >
+          <nav
+            aria-label="More"
+            onClick={(event) => event.stopPropagation()}
+            className="border-rule bg-card animate-rise w-full border-t p-3 pb-[calc(env(safe-area-inset-bottom)+4.5rem)] shadow-xl"
+          >
+            <ul className="grid gap-1">
+              {behindMore.map(({ to, label, Icon }) => (
+                <li key={to}>
+                  <NavLink
+                    to={to}
+                    onClick={() => setMoreOpen(false)}
+                    className={({ isActive }) =>
+                      `rounded-control flex items-center gap-3 px-3 py-3 text-sm ${
+                        isActive ? 'bg-brass-wash text-ink font-medium' : 'text-ink-soft'
+                      }`
+                    }
+                  >
+                    <Icon />
+                    {label}
+                  </NavLink>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        </div>
+      )}
+
       <nav className="border-rule bg-card fixed inset-x-0 bottom-0 z-20 grid grid-cols-4 border-t pb-[env(safe-area-inset-bottom)] md:hidden">
-        {visible
-          .filter((item) => item.mobile)
-          .slice(0, 3)
+        {inBar
           .map(({ to, label, Icon }) => (
             <NavLink
               key={to}
@@ -172,17 +210,17 @@ export function Shell() {
               {label}
             </NavLink>
           ))}
-        <NavLink
-          to="/settings"
-          className={({ isActive }) =>
-            `flex flex-col items-center gap-1 py-2 text-[11px] ${
-              isActive ? 'text-brass font-medium' : 'text-ink-soft'
-            }`
-          }
+        <button
+          type="button"
+          onClick={() => setMoreOpen((open) => !open)}
+          aria-expanded={moreOpen}
+          className={`flex flex-col items-center gap-1 py-2 text-[11px] ${
+            moreOpen || behindMore.some((item) => item.to === pathname) ? 'text-brass font-medium' : 'text-ink-soft'
+          }`}
         >
           <MoreIcon />
           More
-        </NavLink>
+        </button>
       </nav>
     </div>
   )
